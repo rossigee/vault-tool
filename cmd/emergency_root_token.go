@@ -99,7 +99,7 @@ func runEmergencyRootToken(cmd *cobra.Command, args []string) error {
 				fmt.Fprintf(os.Stderr, "  vault-tool decode-token ENCODED_TOKEN --otp OTP\n")
 			} else if initResp.OTP != "" {
 				// OTP is available but user wants plaintext - decode automatically
-				logger.Info("Decoding OTP-wrapped token automatically")
+				logger.Info("Decoding OTP-wrapped token automatically", "token_len", len(updateResp.EncodedToken), "otp_len", len(initResp.OTP), "token", updateResp.EncodedToken)
 				decodedToken, err := otp.DecodeToken(updateResp.EncodedToken, initResp.OTP)
 				if err != nil {
 					return fmt.Errorf("failed to decode OTP-wrapped token: %w", err)
