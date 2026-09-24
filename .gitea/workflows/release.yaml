@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v0.1.6)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -56,7 +62,12 @@ jobs:
 
     - name: Update debian/changelog
       run: |
-        TAG_NAME=${{ gitea.ref_name }}
+        # Handle both tag-triggered and manual dispatch
+        TAG_NAME="${{ github.event.inputs.tag || gitea.ref_name }}"
+        if [ -z "$TAG_NAME" ]; then
+          echo "Error: No tag specified"
+          exit 1
+        fi
         VERSION=${TAG_NAME#v}
         echo "Building version: $VERSION"
         dch --newversion "$VERSION" --distribution unstable "Release $VERSION"
