@@ -33,73 +33,7 @@ go build -ldflags "-X git.golder.lan/rossgolderltd/vault-tool/internal/version.V
 
 ## Setup Requirements
 
-### 1. Vault Policies & AppRole
-
-The `/sys/generate-root/*` endpoints require authentication. Configure Vault with:
-
-**Policy: `unsealer-emergency-root`**
-
-```hcl
-# Emergency root token generation policy
-path "sys/generate-root/attempt" {
-  capabilities = ["create", "update"]
-}
-
-path "sys/generate-root/update" {
-  capabilities = ["create", "update"]
-}
-
-path "sys/generate-root/status" {
-  capabilities = ["read"]
-}
-
-path "sys/generate-root/cancel" {
-  capabilities = ["create", "update"]
-}
-
-path "sys/seal-status" {
-  capabilities = ["read"]
-}
-
-path "sys/unseal" {
-  capabilities = ["create", "update"]
-}
-```
-
-**AppRole: `unsealer-emergency`**
-
-```bash
-# Create policy
-vault policy write unsealer-emergency-root - <<EOF
-[paste policy above]
-EOF
-
-# Create AppRole
-vault write auth/approle/role/unsealer-emergency \
-  policies="unsealer-emergency-root" \
-  bind_secret_id=true \
-  secret_id_ttl=600 \
-  secret_id_num_uses=3 \
-  token_ttl=600 \
-  token_max_ttl=900
-```
-
-**Generate credentials:**
-
-```bash
-# Get Role ID
-ROLE_ID=$(vault read -field=role_id auth/approle/role/unsealer-emergency/role-id)
-
-# Generate Secret ID
-SECRET_ID=$(vault write -field=secret_id -f auth/approle/role/unsealer-emergency/secret-id)
-
-echo "export VAULT_ROLE_ID='$ROLE_ID'"
-echo "export VAULT_SECRET_ID='$SECRET_ID'"
-```
-
-Store these credentials securely (e.g., in 1Password, Vault secret, etc.)
-
-### 2. GPG-encrypted Unseal Keys
+### GPG-encrypted Unseal Keys
 
 Store your unseal keys in an encrypted file:
 
@@ -111,21 +45,6 @@ printf 'key1\nkey2\nkey3\n' | gpg -e -r user@example.com -o ~/.config/vault/bank
 Replace `key1`, `key2`, `key3` with your actual Vault unseal keys and `user@example.com` with your GPG key ID.
 
 ## Usage
-
-### Set AppRole credentials
-
-```bash
-export VAULT_ROLE_ID='ee163dae-8ffc-d067-00eb-cf76303833db'
-export VAULT_SECRET_ID='75a5255a-5a91-020f-6b41-887e9ccb53dc'
-```
-
-Or pass as flags:
-
-```bash
-./vault-tool emergency-root-token \
-  --role-id ee163dae-8ffc-d067-00eb-cf76303833db \
-  --secret-id 75a5255a-5a91-020f-6b41-887e9ccb53dc
-```
 
 ### Unseal a Vault instance
 
@@ -156,8 +75,6 @@ Returns a plaintext root token on stdout (auto-decodes OTP by default).
 - `--ttl` - Token TTL (default: `24h`, e.g., `1h`, `72h`, `7d`)
 - `--use-otp` - Output OTP and encoded token separately (for secure distribution)
 - `-q, --quiet` - Suppress logging output
-- `--role-id` - AppRole Role ID (env: `VAULT_ROLE_ID`)
-- `--secret-id` - AppRole Secret ID (env: `VAULT_SECRET_ID`)
 
 ### Decode OTP-wrapped tokens
 
@@ -197,21 +114,47 @@ export VAULT_SECRET_ID='...'
 
 ### "permission denied" on generate-root/attempt
 
-**Cause:** AppRole credentials not set or policy not applied.
+**Cause:** Vault endpoint requires unauthenticated access to be explicitly allowed.
 
 **Solution:**
-1. Verify AppRole exists: `vault read auth/approle/role/unsealer-emergency`
-2. Verify policy exists: `vault policy read unsealer-emergency-root`
-3. Verify credentials: `echo $VAULT_ROLE_ID $VAULT_SECRET_ID`
 
-### "AppRole authentication failed"
+Vault's `/sys/generate-root/*` endpoints are protected and require either:
 
-**Cause:** Role ID or Secret ID invalid or expired.
+1. **Vault to be sealed** (endpoints inaccessible when sealed - this is by design)
+2. **Default policy updated** to allow unauthenticated access:
 
-**Solution:**
-1. Regenerate Secret ID: `vault write -f auth/approle/role/unsealer-emergency/secret-id`
-2. Store new credentials: `export VAULT_ROLE_ID='...' VAULT_SECRET_ID='...'`
-3. Retry command
+```bash
+vault policy write default - <<'EOF'
+# [existing default policy rules]
+
+# Emergency root token generation
+path "sys/generate-root/attempt" {
+  capabilities = ["create", "update"]
+}
+
+path "sys/generate-root/update" {
+  capabilities = ["create", "update"]
+}
+
+path "sys/generate-root/status" {
+  capabilities = ["read"]
+}
+
+path "sys/generate-root/cancel" {
+  capabilities = ["create", "update"]
+}
+
+path "sys/seal-status" {
+  capabilities = ["read"]
+}
+
+path "sys/unseal" {
+  capabilities = ["create", "update"]
+}
+EOF
+```
+
+Or use `vault policy read default > /tmp/policy.hcl`, edit it, then `vault policy write default /tmp/policy.hcl`.
 
 ### "failed to decrypt keys: exit status 2"
 
@@ -286,7 +229,8 @@ vault-tool/
 ```
 
 **Key design choices:**
-- Unauthenticated Vault API calls require AppRole credentials (root generation endpoints always require auth)
+- Unauthenticated Vault API calls (requires Vault ACL policy updates for `/sys/generate-root/*`)
 - OTP tokens use XOR wrapping with SHA1 checksum (per Vault documentation)
 - Structured logging enables troubleshooting without verbose flags
 - Subprocess GPG decryption handles keyring management automatically
+- No external credentials required beyond GPG passphrase and unseal keys
