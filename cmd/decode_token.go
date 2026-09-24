@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	decodeTokenOTP   string
-	decodeTokenQuiet bool
+	decodeTokenOTP     string
+	decodeTokenVerbose bool
+	decodeTokenDebug   bool
 )
 
 var decodeTokenCmd = &cobra.Command{
@@ -20,14 +21,19 @@ var decodeTokenCmd = &cobra.Command{
 	Long:  "Decode a root token that was generated with OTP protection. The OTP can be provided via --otp flag or will be prompted if not provided.",
 	Args:  cobra.ExactArgs(1),
 	PreRun: func(cmd *cobra.Command, args []string) {
-		logger.SetQuiet(decodeTokenQuiet)
+		if decodeTokenDebug {
+			logger.SetDebug()
+		} else if decodeTokenVerbose {
+			logger.SetVerbose()
+		}
 	},
 	RunE: runDecodeToken,
 }
 
 func init() {
 	decodeTokenCmd.Flags().StringVar(&decodeTokenOTP, "otp", "", "One-time password (will prompt if not provided)")
-	decodeTokenCmd.Flags().BoolVarP(&decodeTokenQuiet, "quiet", "q", false, "Suppress all logging output")
+	decodeTokenCmd.Flags().BoolVarP(&decodeTokenVerbose, "verbose", "v", false, "Enable verbose (info-level) logging")
+	decodeTokenCmd.Flags().BoolVarP(&decodeTokenDebug, "debug", "d", false, "Enable debug-level logging")
 }
 
 func runDecodeToken(cmd *cobra.Command, args []string) error {

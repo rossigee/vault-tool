@@ -7,47 +7,48 @@ import (
 )
 
 var (
-	quiet     bool
+	logLevel  slog.Level
 	mu        sync.Mutex
 	defaulter *slog.Logger
 )
 
 func init() {
+	// Default: quiet (no output)
+	logLevel = slog.LevelError + 1 // Higher than any standard level
 	defaulter = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: logLevel,
 	}))
 }
 
-func SetQuiet(q bool) {
+// SetVerbose enables info-level logging
+func SetVerbose() {
 	mu.Lock()
 	defer mu.Unlock()
-	quiet = q
+	logLevel = slog.LevelInfo
+	defaulter = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: logLevel,
+	}))
 }
 
-func IsQuiet() bool {
+// SetDebug enables debug-level logging
+func SetDebug() {
 	mu.Lock()
 	defer mu.Unlock()
-	return quiet
+	logLevel = slog.LevelDebug
+	defaulter = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: logLevel,
+	}))
 }
 
 func Info(msg string, args ...any) {
-	if IsQuiet() {
-		return
-	}
 	defaulter.Info(msg, args...)
 }
 
 func Error(msg string, args ...any) {
-	if IsQuiet() {
-		return
-	}
 	defaulter.Error(msg, args...)
 }
 
 func Debug(msg string, args ...any) {
-	if IsQuiet() {
-		return
-	}
 	defaulter.Debug(msg, args...)
 }
 

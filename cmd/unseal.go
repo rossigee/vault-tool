@@ -14,7 +14,8 @@ var (
 	unsealAddr       string
 	unsealKeysFile   string
 	unsealPassphrase string
-	unsealQuiet      bool
+	unsealVerbose    bool
+	unsealDebug      bool
 )
 
 var unsealCmd = &cobra.Command{
@@ -22,7 +23,11 @@ var unsealCmd = &cobra.Command{
 	Short: "Unseal a Vault instance",
 	Long:  "Decrypt unseal keys and submit them to Vault to unseal it",
 	PreRun: func(cmd *cobra.Command, args []string) {
-		logger.SetQuiet(unsealQuiet)
+		if unsealDebug {
+			logger.SetDebug()
+		} else if unsealVerbose {
+			logger.SetVerbose()
+		}
 	},
 	RunE: runUnseal,
 }
@@ -31,7 +36,8 @@ func init() {
 	unsealCmd.Flags().StringVar(&unsealAddr, "addr", "https://vault.bankrut.lan", "Vault address")
 	unsealCmd.Flags().StringVar(&unsealKeysFile, "keys-file", os.ExpandEnv("$HOME/.config/vault/bankrut-unseal-keys.gpg"), "Path to GPG-encrypted unseal keys")
 	unsealCmd.Flags().StringVar(&unsealPassphrase, "passphrase", "", "GPG passphrase (read from stdin if not provided)")
-	unsealCmd.Flags().BoolVarP(&unsealQuiet, "quiet", "q", false, "Suppress all logging output")
+	unsealCmd.Flags().BoolVarP(&unsealVerbose, "verbose", "v", false, "Enable verbose (info-level) logging")
+	unsealCmd.Flags().BoolVarP(&unsealDebug, "debug", "d", false, "Enable debug-level logging")
 }
 
 func runUnseal(cmd *cobra.Command, args []string) error {

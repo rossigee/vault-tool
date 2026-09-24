@@ -17,8 +17,10 @@ var (
 	emergencyKeysFile    string
 	emergencyPassphrase  string
 	emergencyTokenTTL    string
-	emergencyQuiet       bool
+	emergencyVerbose     bool
+	emergencyDebug       bool
 	emergencyUseOTP      bool
+	emergencyTokenFile   string
 )
 
 var emergencyRootTokenCmd = &cobra.Command{
@@ -26,7 +28,11 @@ var emergencyRootTokenCmd = &cobra.Command{
 	Short: "Generate an emergency root token",
 	Long:  "Use unseal keys to generate a temporary root token for emergency maintenance when OIDC auth is unavailable",
 	PreRun: func(cmd *cobra.Command, args []string) {
-		logger.SetQuiet(emergencyQuiet)
+		if emergencyDebug {
+			logger.SetDebug()
+		} else if emergencyVerbose {
+			logger.SetVerbose()
+		}
 	},
 	RunE: runEmergencyRootToken,
 }
@@ -36,7 +42,9 @@ func init() {
 	emergencyRootTokenCmd.Flags().StringVar(&emergencyKeysFile, "keys-file", os.ExpandEnv("$HOME/.config/vault/bankrut-unseal-keys.gpg"), "Path to GPG-encrypted unseal keys")
 	emergencyRootTokenCmd.Flags().StringVar(&emergencyPassphrase, "passphrase", "", "GPG passphrase (read from stdin if not provided)")
 	emergencyRootTokenCmd.Flags().StringVar(&emergencyTokenTTL, "ttl", "24h", "Token TTL (default 24 hours)")
-	emergencyRootTokenCmd.Flags().BoolVarP(&emergencyQuiet, "quiet", "q", false, "Suppress all logging output")
+	emergencyRootTokenCmd.Flags().StringVarP(&emergencyTokenFile, "file", "f", os.ExpandEnv("$HOME/.vault-token"), "Output file for token (default: ~/.vault-token, use - for stdout)")
+	emergencyRootTokenCmd.Flags().BoolVarP(&emergencyVerbose, "verbose", "v", false, "Enable verbose (info-level) logging")
+	emergencyRootTokenCmd.Flags().BoolVarP(&emergencyDebug, "debug", "d", false, "Enable debug-level logging")
 	emergencyRootTokenCmd.Flags().BoolVar(&emergencyUseOTP, "use-otp", false, "Return OTP-wrapped token separately for secure distribution (normally auto-decoded)")
 }
 
@@ -104,14 +112,31 @@ func runEmergencyRootToken(cmd *cobra.Command, args []string) error {
 				if err != nil {
 					return fmt.Errorf("failed to decode OTP-wrapped token: %w", err)
 				}
-				fmt.Println(decodedToken)
+				writeToken(decodedToken)
 			} else {
 				// No OTP protection - token is plaintext
-				fmt.Println(updateResp.EncodedToken)
+				writeToken(updateResp.EncodedToken)
 			}
 			return nil
 		}
 	}
 
 	return fmt.Errorf("root token generation incomplete after submitting all keys")
+}
+
+func writeToken(token string) error {
+	if emergencyTokenFile == "-" {
+		fmt.Println(token)
+		return nil
+	}
+
+	expandedPath := os.ExpandEnv(emergencyTokenFile)
+	err := os.WriteFile(expandedPath, []byte(token+"\n"), 0600)
+	if err != nil {
+		return fmt.Errorf("failed to write token to %s: %w", expandedPath, err)
+	}
+
+	fmt.Fprintf(os.Stderr, "\n✓ Root token written to: %s\n", expandedPath)
+	fmt.Fprintf(os.Stderr, "Token TTL: %s\n", emergencyTokenTTL)
+	return nil
 }

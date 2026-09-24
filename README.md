@@ -4,28 +4,36 @@ A Go CLI tool for Vault emergency access and maintenance, providing sealed insta
 
 ## Overview
 
-`vault-tool` enables operators to unseal a Vault instance and generate temporary emergency root tokens when normal authentication (OIDC, tokens, etc.) is unavailable. It uses GPG-encrypted unseal keys for secure key storage and management.
+`vault-tool` is a **break-glass emergency tool** for Vault incident response. Normal admin operations should use OIDC or other per-user authentication for audit trail purposes. 
+
+This tool enables operators to unseal a sealed Vault instance and generate temporary emergency root tokens **only when normal authentication (OIDC, tokens, etc.) is unavailable**. It uses GPG-encrypted unseal keys for secure key storage and management.
 
 **Prerequisites:** Your Vault server must be configured with `enable_unauthenticated_access = ["generate-root"]` to allow emergency token generation. See Setup Requirements below.
 
 **Emergency workflow:**
 
-1. **Seal** the Vault instance (if currently running)
-2. **Unseal** it using `vault-tool unseal` with your encrypted unseal keys  
-3. **Generate emergency root token** using `vault-tool emergency-root-token` (works with unseal keys only)
+1. **Normal operations**: Use OIDC login for all admin access (enables audit trail, per-user accountability)
+2. **Emergency (OIDC unavailable)**: 
+   - Seal the Vault instance if needed
+   - Unseal it using `vault-tool unseal` with encrypted unseal keys  
+   - Generate temporary root token using `vault-tool emergency-root-token`
+   - Perform emergency investigation/remediation
+   - Revoke the emergency token when done
 
-**Use cases:**
-- Emergency root token generation when normal auth is unavailable AND Vault has been sealed
-- Unsealing Vault after it becomes sealed unexpectedly
-- Recovery from lost authentication credentials
+**Break-glass use cases only:**
+- Emergency root token when OIDC/normal auth is unavailable AND Vault has been sealed
+- Unsealing Vault after unexpected seal or startup failure
+- Disaster recovery from authentication infrastructure failure
+- **NOT for routine admin tasks** (use OIDC for those - audit trail required)
 
 ## Features
 
 - **Unseal** - Decrypt GPG-encrypted unseal keys and submit them to Vault to unseal it
-- **Emergency Root Token** - Generate a temporary root token with configurable TTL (default 24 hours)
-- **OTP Support** - Optional one-time-password protection for tokens during secure distribution
+- **Emergency Root Token** - Generate temporary root token with configurable TTL (default 24 hours)
+- **OTP Support** - Optional one-time-password protection for secure multi-channel token distribution
 - **Decode Token** - Decrypt OTP-wrapped tokens for use
-- **Structured Logging** - Detailed operation logging with `-q` flag to suppress output
+- **Flexible Output** - Token written to `~/.vault-token` by default (secure 0600 permissions), or specify custom location with `-f` flag, or stdout with `-f -`
+- **Quiet by Default** - No logging output unless `-v` (verbose) or `-d` (debug) flags specified
 
 ## Installation
 
@@ -44,19 +52,27 @@ go build -ldflags "-X git.golder.lan/rossgolderltd/vault-tool/internal/version.V
 ### Complete example: Generate and use an emergency root token
 
 ```bash
-# 1. Generate emergency root token (auto-decoded, returns plaintext)
-export ROOT_TOKEN=$(vault-tool emergency-root-token -q)
+# 1. Generate emergency root token (quiet by default, writes to ~/.vault-token)
+vault-tool emergency-root-token
 
 # 2. Use the token immediately
-export VAULT_TOKEN="$ROOT_TOKEN"
+export VAULT_TOKEN=$(cat ~/.vault-token)
 vault status
 vault auth list
 
-# 3. Optional: Set token TTL and revoke when done
-vault token renew --increment 1h
+# 3. Optional: Troubleshoot with verbose logging
+vault-tool emergency-root-token -v -f /tmp/root-token.txt
 
 # 4. Clean up - revoke when emergency is resolved
 vault token revoke -self
+
+# 5. Securely delete the token file
+shred -u ~/.vault-token
+```
+
+Or retrieve token from stdout for piping:
+```bash
+vault-tool emergency-root-token -f - | tee >(export VAULT_TOKEN=$(cat))
 ```
 
 ### Secure distribution workflow: Use OTP protection for separate channels
@@ -122,15 +138,17 @@ Prompts for GPG passphrase, then submits unseal keys to unseal Vault.
 ./vault-tool emergency-root-token
 ```
 
-**Default behavior:** Decrypts unseal keys, generates root token, auto-decodes OTP wrapping, outputs plaintext token on stdout.
+**Default behavior:** Quiet, decrypts unseal keys, generates root token, auto-decodes OTP wrapping, writes plaintext token to `~/.vault-token` with 0600 permissions.
 
 **Options:**
 - `--addr` - Vault address (default: `https://vault.bankrut.lan`)
 - `--keys-file` - Path to GPG-encrypted unseal keys (default: `$HOME/.config/vault/bankrut-unseal-keys.gpg`)
 - `--passphrase` - GPG passphrase (prompts if not provided)
 - `--ttl` - Token TTL (default: `24h`, e.g., `1h`, `72h`, `7d`)
+- `-f, --file` - Output file for token (default: `~/.vault-token`, use `-f -` for stdout)
 - `--use-otp` - Output OTP and encoded token separately (for secure distribution over separate channels)
-- `-q, --quiet` - Suppress logging output
+- `-v, --verbose` - Enable info-level logging
+- `-d, --debug` - Enable debug-level logging
 
 ### OTP-Protected Token Generation
 
