@@ -87,6 +87,22 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
         fi
 
+    - name: Set up SSH for gitea CLI authentication
+      run: |
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        # Configure gitea CLI to use SSH auth (SSH key is mounted on runner)
+        mkdir -p ~/.config/tea
+        cat > ~/.config/tea/config.yml << 'TEAEOF'
+        logins:
+        - name: git.golder.lan
+          url: https://git.golder.lan
+          ssh_host: git.golder.lan
+          insecure: false
+          ssh_key: id_ed25519
+          ssh_agent: false
+        TEAEOF
+
     - name: Upload packages to release (only semantic versions)
       if: gitea.event_name == 'push'
       run: |
@@ -94,12 +110,10 @@ jobs:
         SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$'
         if [[ $TAG_NAME =~ $SEMVER_REGEX ]]; then
           echo "Uploading Debian packages for semantic version: $TAG_NAME"
-          gitea release attachment add -f ../vault-tool_*.deb "$TAG_NAME"
+          tea release attachment add -f ../vault-tool_*.deb "$TAG_NAME" -r rossgolderltd/vault-tool
         else
           echo "Skipping package upload - not a semantic version tag: $TAG_NAME"
         fi
-      env:
-        GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
