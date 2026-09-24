@@ -6,9 +6,15 @@ A Go CLI tool for Vault emergency access and maintenance, providing sealed insta
 
 `vault-tool` enables operators to unseal a Vault instance and generate temporary emergency root tokens when normal authentication (OIDC, tokens, etc.) is unavailable. It uses GPG-encrypted unseal keys for secure key storage and management.
 
+**Critical design note:** Unsealed Vault instances do not allow unauthenticated access to root token generation endpoints - this is a Vault security design. The emergency workflow therefore is:
+
+1. **Seal** the Vault instance (if currently running)
+2. **Unseal** it using `vault-tool unseal` with your encrypted unseal keys
+3. **Generate emergency root token** using `vault-tool emergency-root-token`
+
 **Use cases:**
-- Emergency root token generation when normal auth is unavailable
-- Unsealing Vault after operator lockout
+- Emergency root token generation when normal auth is unavailable AND Vault has been sealed
+- Unsealing Vault after it becomes sealed unexpectedly
 - Recovery from lost authentication credentials
 
 ## Features
@@ -114,47 +120,29 @@ export VAULT_SECRET_ID='...'
 
 ### "permission denied" on generate-root/attempt
 
-**Cause:** Vault endpoint requires unauthenticated access to be explicitly allowed.
+**Cause:** Vault's `/sys/generate-root/*` endpoints require authentication when Vault is unsealed. This is a Vault security design - the default policy does not apply to unauthenticated requests.
 
-**Solution:**
+**Limitation:** `vault-tool emergency-root-token` currently requires either:
+- A valid Vault token (root token, recovery code, or service token)
+- A mechanism to authenticate (AppRole, LDAP, OIDC, etc.)
 
-Vault's `/sys/generate-root/*` endpoints are protected and require either:
+This is a Vault architectural limitation, not a tool limitation. Unauthenticated access to root token generation is explicitly denied for security reasons.
 
-1. **Vault to be sealed** (endpoints inaccessible when sealed - this is by design)
-2. **Default policy updated** to allow unauthenticated access:
+**Workaround options:**
 
-```bash
-vault policy write default - <<'EOF'
-# [existing default policy rules]
+1. **Use AppRole** (requires initial setup with root token):
+   ```bash
+   # Store AppRole credentials from initial setup
+   export VAULT_ROLE_ID='...'
+   export VAULT_SECRET_ID='...'
+   ./vault-tool emergency-root-token
+   ```
 
-# Emergency root token generation
-path "sys/generate-root/attempt" {
-  capabilities = ["create", "update"]
-}
+2. **Store a recovery code** in Vault during normal operations for emergency use
 
-path "sys/generate-root/update" {
-  capabilities = ["create", "update"]
-}
+3. **Use a long-lived service token** for the unsealer role (less secure, but simpler)
 
-path "sys/generate-root/status" {
-  capabilities = ["read"]
-}
-
-path "sys/generate-root/cancel" {
-  capabilities = ["create", "update"]
-}
-
-path "sys/seal-status" {
-  capabilities = ["read"]
-}
-
-path "sys/unseal" {
-  capabilities = ["create", "update"]
-}
-EOF
-```
-
-Or use `vault policy read default > /tmp/policy.hcl`, edit it, then `vault policy write default /tmp/policy.hcl`.
+The `unseal` subcommand works unauthenticated and is recommended for Vault recovery scenarios.
 
 ### "failed to decrypt keys: exit status 2"
 
