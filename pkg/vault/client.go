@@ -127,7 +127,9 @@ func (c *Client) Status(ctx context.Context) (*StatusResponse, error) {
 }
 
 func (c *Client) InitRootTokenGeneration(ctx context.Context, ttl string) (*InitRootTokenResponse, error) {
-	payload := map[string]string{"pgp_keys": ""}
+	// No pgp_keys and no otp - unseal keys will be provided instead
+	// Vault will return an encoded token
+	payload := map[string]interface{}{}
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
@@ -139,7 +141,6 @@ func (c *Client) InitRootTokenGeneration(ctx context.Context, ttl string) (*Init
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Vault-Token", "root")
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -167,7 +168,10 @@ func (c *Client) InitRootTokenGeneration(ctx context.Context, ttl string) (*Init
 }
 
 func (c *Client) UpdateRootTokenGeneration(ctx context.Context, nonce, key string) (*UpdateRootTokenResponse, error) {
-	payload := map[string]string{"key": key}
+	payload := map[string]string{
+		"key":   key,
+		"nonce": nonce,
+	}
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
@@ -179,7 +183,6 @@ func (c *Client) UpdateRootTokenGeneration(ctx context.Context, nonce, key strin
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Vault-Token", "root")
 
 	resp, err := c.client.Do(req)
 	if err != nil {
