@@ -1,2 +1,16 @@
 vault-tool
 go.sum
+
+# Debian build artifacts
+*.deb
+*.buildinfo
+*.changes
+debian/vault-tool/
+debian/.debhelper/
+.debhelper
+*.egg-info/
+dist/
+build/
+coverage.out
+*.substvars
+debhelper-build-stamp

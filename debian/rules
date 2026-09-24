@@ -1,0 +1,24 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_OPTIONS = noautodbgsym
+
+%:
+	dh $@
+
+# dwz fails on Go binaries (compressed .debug_abbrev section)
+override_dh_dwz:
+
+# objcopy --compress-debug-sections fails on Go binaries; skip stripping
+override_dh_strip:
+
+override_dh_auto_clean:
+	rm -f vault-tool
+
+override_dh_auto_build:
+	go build -ldflags "-X git.golder.lan/rossgolderltd/vault-tool/internal/version.Version=$(shell cat VERSION)" -o vault-tool .
+
+override_dh_auto_install:
+	install -D -m 0755 vault-tool debian/vault-tool/usr/bin/vault-tool
+
+override_dh_auto_test:
+	@echo "Tests are run separately in CI (build workflow)"

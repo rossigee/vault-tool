@@ -1,0 +1,14 @@
+Source: vault-tool
+Section: admin
+Priority: optional
+Maintainer: Ross Golder <ross@golder.org>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Homepage: https://git.golder.lan/rossgolderltd/vault-tool
+
+Package: vault-tool
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Vault emergency access and maintenance tool
+ CLI tool for Vault unsealing and emergency root token generation.
+ Supports emergency access when normal authentication methods fail.

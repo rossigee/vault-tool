@@ -1,0 +1,130 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-debian-package:
+    runs-on: self-hosted
+    container:
+      image: zot.bankrut.lan/infra/gitea-ci:latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install CA certificates
+      run: |
+        echo "Configuring CA certificates for Git SSL verification..."
+        if [ -w /etc/ssl/certs ]; then
+          apt-get update
+          apt-get install -y ca-certificates curl git
+          mkdir -p /usr/local/share/ca-certificates
+          curl -fsSL https://cdn.bankrut.net/ca/certificates/bknst-root-ca.crt -o /usr/local/share/ca-certificates/bknst-root-ca.crt
+          update-ca-certificates
+        else
+          echo "/etc/ssl/certs is read-only; relying on host trust store"
+          apt-get update
+          apt-get install -y ca-certificates curl git
+        fi
+        git config --global http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
+        echo "CA certificates configured"
+
+    - name: Verify Go version
+      run: go version
+
+    - name: Install build dependencies
+      run: |
+        apt-get update
+        apt-get install -y \
+          build-essential \
+          debhelper \
+          debhelper-compat \
+          ca-certificates \
+          devscripts \
+          git
+
+    - name: Download Go dependencies
+      run: go mod download
+
+    - name: Update debian/changelog
+      run: |
+        TAG_NAME=${{ gitea.ref_name }}
+        VERSION=${TAG_NAME#v}
+        echo "Building version: $VERSION"
+        dch --newversion "$VERSION" --distribution unstable "Release $VERSION"
+
+    - name: Build Debian package
+      run: dpkg-buildpackage -us -uc -b
+
+    - name: List built packages
+      run: ls -la ../*.deb ../*.buildinfo ../*.changes
+
+    - name: Test package installation
+      run: |
+        dpkg -i ../vault-tool_*.deb || \
+          (apt-get install -f -y && dpkg -i ../vault-tool_*.deb)
+        vault-tool version
+        vault-tool --help | head -5
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ || echo "")
+        if [ -z "$PREV_TAG" ]; then
+          echo "changelog=Initial release" >> $GITHUB_OUTPUT
+        else
+          CHANGELOG=$(git log --pretty=format:"- %s" $PREV_TAG..HEAD | grep -E "^- (feat|fix|perf|refactor|security|build):" || echo "- Various improvements")
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Upload packages to release (only semantic versions)
+      if: gitea.event_name == 'push'
+      run: |
+        TAG_NAME=${{ gitea.ref_name }}
+        SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$'
+        if [[ $TAG_NAME =~ $SEMVER_REGEX ]]; then
+          echo "Uploading Debian packages for semantic version: $TAG_NAME"
+          gitea release attachment add -f ../vault-tool_*.deb "$TAG_NAME"
+        else
+          echo "Skipping package upload - not a semantic version tag: $TAG_NAME"
+        fi
+      env:
+        GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body: |
+          ## vault-tool ${{ gitea.ref_name }}
+
+          ### Changes
+          ${{ steps.changelog.outputs.changelog }}
+
+          ### Installation
+
+          Download the `.deb` package from this release and install:
+
+          ```bash
+          wget https://git.golder.lan/rossgolderltd/vault-tool/releases/download/${{ gitea.ref_name }}/vault-tool_*.deb
+          sudo dpkg -i vault-tool_*.deb
+          ```
+
+          Or test directly:
+
+          ```bash
+          vault-tool unseal --help
+          vault-tool emergency-root-token --help
+          ```
+
+        draft: false
+        prerelease: ${{ contains(gitea.ref_name, '-rc') || contains(gitea.ref_name, '-beta') || contains(gitea.ref_name, '-alpha') }}
