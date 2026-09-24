@@ -159,14 +159,21 @@ func (c *Client) InitRootTokenGeneration(ctx context.Context, ttl string) (*Init
 		return nil, fmt.Errorf("generate root token initialization failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
-	var result struct {
+	// Try to parse as wrapped response first (authenticated requests)
+	var wrappedResult struct {
 		Data InitRootTokenResponse `json:"data"`
 	}
-	if err := json.Unmarshal(body, &result); err != nil {
+	if err := json.Unmarshal(body, &wrappedResult); err == nil && wrappedResult.Data.Nonce != "" {
+		return &wrappedResult.Data, nil
+	}
+
+	// Fall back to direct response (unauthenticated requests)
+	var directResult InitRootTokenResponse
+	if err := json.Unmarshal(body, &directResult); err != nil {
 		return nil, err
 	}
 
-	return &result.Data, nil
+	return &directResult, nil
 }
 
 func (c *Client) UpdateRootTokenGeneration(ctx context.Context, nonce, key string) (*UpdateRootTokenResponse, error) {
@@ -201,12 +208,19 @@ func (c *Client) UpdateRootTokenGeneration(ctx context.Context, nonce, key strin
 		return nil, fmt.Errorf("generate root token update failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
-	var result struct {
+	// Try to parse as wrapped response first (authenticated requests)
+	var wrappedResult struct {
 		Data UpdateRootTokenResponse `json:"data"`
 	}
-	if err := json.Unmarshal(body, &result); err != nil {
+	if err := json.Unmarshal(body, &wrappedResult); err == nil && wrappedResult.Data.Nonce != "" {
+		return &wrappedResult.Data, nil
+	}
+
+	// Fall back to direct response (unauthenticated requests)
+	var directResult UpdateRootTokenResponse
+	if err := json.Unmarshal(body, &directResult); err != nil {
 		return nil, err
 	}
 
-	return &result.Data, nil
+	return &directResult, nil
 }
