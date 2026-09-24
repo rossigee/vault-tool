@@ -97,6 +97,8 @@ jobs:
 
     - name: Create Release
       uses: softprops/action-gh-release@v3
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         body: |
           ## vault-tool ${{ gitea.ref_name }}
@@ -120,5 +122,6 @@ jobs:
           vault-tool emergency-root-token --help
           ```
 
+        files: vault-tool_*.deb
         draft: false
         prerelease: ${{ contains(gitea.ref_name, '-rc') || contains(gitea.ref_name, '-beta') || contains(gitea.ref_name, '-alpha') }}

@@ -101,6 +101,7 @@ jobs:
           trivy-results.json
           trivy-deps.json
         retention-days: 30
+        overwrite: true
 
     - name: Upload binary artifact
       uses: actions/upload-artifact@v7
@@ -108,3 +109,4 @@ jobs:
         name: vault-tool-${{ gitea.sha }}
         path: vault-tool
         retention-days: 7
+        overwrite: true
