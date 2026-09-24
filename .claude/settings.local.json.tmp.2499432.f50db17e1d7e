@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go mod *)",
+      "Bash(go build *)",
+      "Bash(./vault-tool *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Initial implementation of vault-tool CLI *)"
+    ]
+  }
+}
