@@ -1,5 +1,4 @@
 vault-tool
-go.sum
 
 # Debian build artifacts
 *.deb

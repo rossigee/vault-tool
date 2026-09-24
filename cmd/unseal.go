@@ -5,30 +5,39 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"git.golder.lan/rossgolderltd/vault-tool/internal/logger"
 	"git.golder.lan/rossgolderltd/vault-tool/pkg/gpg"
 	"git.golder.lan/rossgolderltd/vault-tool/pkg/vault"
 )
 
 var (
-	unsealAddr      string
-	unsealKeysFile  string
+	unsealAddr       string
+	unsealKeysFile   string
 	unsealPassphrase string
+	unsealQuiet      bool
 )
 
 var unsealCmd = &cobra.Command{
 	Use:   "unseal",
 	Short: "Unseal a Vault instance",
 	Long:  "Decrypt unseal keys and submit them to Vault to unseal it",
-	RunE:  runUnseal,
+	PreRun: func(cmd *cobra.Command, args []string) {
+		logger.SetQuiet(unsealQuiet)
+	},
+	RunE: runUnseal,
 }
 
 func init() {
 	unsealCmd.Flags().StringVar(&unsealAddr, "addr", "https://vault.bankrut.lan", "Vault address")
 	unsealCmd.Flags().StringVar(&unsealKeysFile, "keys-file", os.ExpandEnv("$HOME/.config/vault/bankrut-unseal-keys.gpg"), "Path to GPG-encrypted unseal keys")
 	unsealCmd.Flags().StringVar(&unsealPassphrase, "passphrase", "", "GPG passphrase (read from stdin if not provided)")
+	unsealCmd.Flags().BoolVarP(&unsealQuiet, "quiet", "q", false, "Suppress all logging output")
 }
 
 func runUnseal(cmd *cobra.Command, args []string) error {
+	logger.Info("Starting Vault unseal process", "addr", unsealAddr, "keys_file", unsealKeysFile)
+
+	logger.Info("Decrypting unseal keys from GPG file", "file", unsealKeysFile)
 	keys, err := gpg.DecryptKeys(unsealKeysFile, unsealPassphrase)
 	if err != nil {
 		return fmt.Errorf("failed to decrypt keys: %w", err)
@@ -37,6 +46,7 @@ func runUnseal(cmd *cobra.Command, args []string) error {
 	if len(keys) == 0 {
 		return fmt.Errorf("no unseal keys found in %s", unsealKeysFile)
 	}
+	logger.Info("Decrypted unseal keys", "count", len(keys))
 
 	client := vault.NewClient(unsealAddr)
 
@@ -45,17 +55,17 @@ func runUnseal(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		fmt.Fprintf(os.Stderr, "Unsealing (key %d/%d)...\n", i+1, len(keys))
+		logger.Info("Submitting unseal key", "key_number", i+1, "total_keys", len(keys))
 
 		resp, err := client.Unseal(cmd.Context(), key)
 		if err != nil {
 			return fmt.Errorf("unseal failed at key %d: %w", i+1, err)
 		}
 
-		fmt.Fprintf(os.Stderr, "  sealed: %v  progress: %d/%d\n", resp.Sealed, resp.Progress, resp.T)
+		logger.Info("Unseal key accepted", "sealed", resp.Sealed, "progress", resp.Progress, "threshold", resp.T)
 
 		if !resp.Sealed {
-			fmt.Fprintf(os.Stderr, "Vault unsealed after %d keys\n", i+1)
+			logger.Info("Vault unsealed successfully", "keys_used", i+1)
 			return nil
 		}
 	}
@@ -63,7 +73,7 @@ func runUnseal(cmd *cobra.Command, args []string) error {
 	// If we get here, vault is still sealed
 	statusResp, err := client.Status(cmd.Context())
 	if err == nil {
-		fmt.Fprintf(os.Stderr, "Vault still sealed after %d keys. Progress: %d/%d\n", len(keys), statusResp.Progress, statusResp.T)
+		logger.Info("Vault still sealed after all keys", "progress", statusResp.Progress, "threshold", statusResp.T)
 	}
 
 	return nil

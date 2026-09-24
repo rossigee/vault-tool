@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"git.golder.lan/rossgolderltd/vault-tool/internal/logger"
 	"git.golder.lan/rossgolderltd/vault-tool/pkg/gpg"
 	"git.golder.lan/rossgolderltd/vault-tool/pkg/vault"
 )
@@ -15,13 +16,17 @@ var (
 	emergencyKeysFile    string
 	emergencyPassphrase  string
 	emergencyTokenTTL    string
+	emergencyQuiet       bool
 )
 
 var emergencyRootTokenCmd = &cobra.Command{
 	Use:   "emergency-root-token",
 	Short: "Generate an emergency root token",
 	Long:  "Use unseal keys to generate a temporary root token for emergency maintenance when OIDC auth is unavailable",
-	RunE:  runEmergencyRootToken,
+	PreRun: func(cmd *cobra.Command, args []string) {
+		logger.SetQuiet(emergencyQuiet)
+	},
+	RunE: runEmergencyRootToken,
 }
 
 func init() {
@@ -29,9 +34,13 @@ func init() {
 	emergencyRootTokenCmd.Flags().StringVar(&emergencyKeysFile, "keys-file", os.ExpandEnv("$HOME/.config/vault/bankrut-unseal-keys.gpg"), "Path to GPG-encrypted unseal keys")
 	emergencyRootTokenCmd.Flags().StringVar(&emergencyPassphrase, "passphrase", "", "GPG passphrase (read from stdin if not provided)")
 	emergencyRootTokenCmd.Flags().StringVar(&emergencyTokenTTL, "ttl", "24h", "Token TTL (default 24 hours)")
+	emergencyRootTokenCmd.Flags().BoolVarP(&emergencyQuiet, "quiet", "q", false, "Suppress all logging output")
 }
 
 func runEmergencyRootToken(cmd *cobra.Command, args []string) error {
+	logger.Info("Starting emergency root token generation", "addr", emergencyAddr, "keys_file", emergencyKeysFile)
+
+	logger.Info("Decrypting unseal keys from GPG file", "file", emergencyKeysFile)
 	keys, err := gpg.DecryptKeys(emergencyKeysFile, emergencyPassphrase)
 	if err != nil {
 		return fmt.Errorf("failed to decrypt keys: %w", err)
@@ -40,41 +49,43 @@ func runEmergencyRootToken(cmd *cobra.Command, args []string) error {
 	if len(keys) == 0 {
 		return fmt.Errorf("no unseal keys found in %s", emergencyKeysFile)
 	}
+	logger.Info("Decrypted unseal keys", "count", len(keys))
 
 	// Validate TTL is parseable
+	logger.Info("Validating TTL format", "ttl", emergencyTokenTTL)
 	_, err = time.ParseDuration(emergencyTokenTTL)
 	if err != nil {
 		return fmt.Errorf("invalid TTL: %w", err)
 	}
+	logger.Info("TTL is valid", "ttl", emergencyTokenTTL)
 
 	client := vault.NewClient(emergencyAddr)
 
-	fmt.Fprintf(os.Stderr, "Starting root token generation process...\n")
-
+	logger.Info("Initializing root token generation process")
 	initResp, err := client.InitRootTokenGeneration(cmd.Context(), emergencyTokenTTL)
 	if err != nil {
 		return fmt.Errorf("failed to initialize root token generation: %w", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "Root token generation initialized. Nonce: %s\n", initResp.Nonce)
-	fmt.Fprintf(os.Stderr, "Submitting %d unseal key(s) to complete generation...\n", len(keys))
+	logger.Info("Root token generation initialized", "nonce", initResp.Nonce, "threshold", initResp.T, "total", initResp.N)
+	logger.Info("Submitting unseal keys to complete generation", "keys_needed", initResp.T, "total_keys", len(keys))
 
 	for i, key := range keys {
 		if key == "" {
 			continue
 		}
 
-		fmt.Fprintf(os.Stderr, "Submitting key %d/%d...\n", i+1, len(keys))
+		logger.Info("Submitting unseal key", "key_number", i+1, "total_keys", len(keys))
 
 		updateResp, err := client.UpdateRootTokenGeneration(cmd.Context(), initResp.Nonce, key)
 		if err != nil {
 			return fmt.Errorf("failed to update root token generation at key %d: %w", i+1, err)
 		}
 
-		fmt.Fprintf(os.Stderr, "  progress: %d/%d\n", updateResp.Progress, updateResp.Required)
+		logger.Info("Key submitted successfully", "progress", updateResp.Progress, "required", updateResp.Required)
 
 		if updateResp.Complete {
-			fmt.Fprintf(os.Stderr, "Root token generation completed.\n")
+			logger.Info("Root token generation completed successfully")
 			fmt.Println(updateResp.EncodedToken)
 			return nil
 		}
