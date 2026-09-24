@@ -39,6 +39,43 @@ Or with version injection:
 go build -ldflags "-X git.golder.lan/rossgolderltd/vault-tool/internal/version.Version=$(cat VERSION)" -o vault-tool
 ```
 
+## Emergency Workflow
+
+### Complete example: Generate and use an emergency root token
+
+```bash
+# 1. Generate emergency root token (auto-decoded, returns plaintext)
+export ROOT_TOKEN=$(vault-tool emergency-root-token -q)
+
+# 2. Use the token immediately
+export VAULT_TOKEN="$ROOT_TOKEN"
+vault status
+vault auth list
+
+# 3. Optional: Set token TTL and revoke when done
+vault token renew --increment 1h
+
+# 4. Clean up - revoke when emergency is resolved
+vault token revoke -self
+```
+
+### Secure distribution workflow: Use OTP protection for separate channels
+
+```bash
+# Alice generates token with OTP protection
+alice$ vault-tool emergency-root-token --use-otp
+# Output:
+# OTP=EXAMPLE_OTP_VALUE
+# ENCODED_TOKEN=EXAMPLE_ENCODED_TOKEN
+
+# Alice sends OTP via Slack/Signal
+# Alice sends ENCODED_TOKEN via email
+
+# Bob receives both and decodes
+bob$ vault-tool decode-token EXAMPLE_ENCODED_TOKEN --otp EXAMPLE_OTP_VALUE
+# (example-plaintext-token)
+```
+
 ## Setup Requirements
 
 ### Vault Server Configuration
@@ -85,49 +122,45 @@ Prompts for GPG passphrase, then submits unseal keys to unseal Vault.
 ./vault-tool emergency-root-token
 ```
 
-Returns a plaintext root token on stdout (auto-decodes OTP by default).
+**Default behavior:** Decrypts unseal keys, generates root token, auto-decodes OTP wrapping, outputs plaintext token on stdout.
 
 **Options:**
 - `--addr` - Vault address (default: `https://vault.bankrut.lan`)
-- `--keys-file` - Path to GPG-encrypted unseal keys
+- `--keys-file` - Path to GPG-encrypted unseal keys (default: `$HOME/.config/vault/bankrut-unseal-keys.gpg`)
 - `--passphrase` - GPG passphrase (prompts if not provided)
 - `--ttl` - Token TTL (default: `24h`, e.g., `1h`, `72h`, `7d`)
-- `--use-otp` - Output OTP and encoded token separately (for secure distribution)
+- `--use-otp` - Output OTP and encoded token separately (for secure distribution over separate channels)
 - `-q, --quiet` - Suppress logging output
+
+### OTP-Protected Token Generation
+
+For secure distribution of root tokens via separate channels:
+
+```bash
+# Generate with OTP protection (outputs are separate)
+./vault-tool emergency-root-token --use-otp
+
+# Output:
+# OTP=EXAMPLE_OTP_VALUE
+# ENCODED_TOKEN=EXAMPLE_ENCODED_TOKEN
+
+# Send OTP via one channel (e.g., Slack, Signal), encoded token via another (e.g., email)
+```
 
 ### Decode OTP-wrapped tokens
 
-If using `--use-otp`, decode the token with:
+Decode a token that was generated with `--use-otp`:
 
 ```bash
-./vault-tool decode-token ENCODED_TOKEN --otp OTP_PASSWORD
-```
+./vault-tool decode-token ENCODED_TOKEN --otp OTP
 
-Or prompt for OTP:
-
-```bash
+# Or prompt for OTP interactively:
 ./vault-tool decode-token ENCODED_TOKEN
 # Enter OTP: <paste OTP>
 ```
 
-## OTP Support
-
-Tokens can be generated with OTP protection for secure distribution via separate channels:
-
-```bash
-# Generate with OTP protection
-export VAULT_ROLE_ID='...'
-export VAULT_SECRET_ID='...'
-./vault-tool emergency-root-token --use-otp
-
-# Output:
-# OTP=b3Pi7xRBYi1bDA6BO6cBYIH0WiBY
-# ENCODED_TOKEN=Qx4BAgMEBQYHCAkAUVJTVFVWhPHVo9zhPP8L7q5MuHmhadqLj+A=
-
-# Send OTP via one channel, encoded token via another
-# Recipient decodes with:
-./vault-tool decode-token ENCODED_TOKEN --otp OTP
-```
+**Options:**
+- `-q, --quiet` - Suppress logging output
 
 ## Troubleshooting
 
@@ -174,31 +207,46 @@ After configuration, `vault-tool emergency-root-token` will work using only the 
 
 ### "root generation already in progress"
 
-**Cause:** Previous root token generation didn't complete.
+**Cause:** A previous root token generation is still in progress (Vault limits to one at a time).
 
-**Solution:** Use root token to cancel:
+**Solution:** 
 
+1. If you have a root token, cancel the attempt:
 ```bash
 vault write sys/generate-root/cancel
-# OR
-curl -X PUT -H "X-Vault-Token: $VAULT_ROOT_TOKEN" \
-  https://vault.bankrut.lan/v1/sys/generate-root/cancel
 ```
 
-### "token checksum verification failed - OTP may be incorrect"
+2. Or wait for the operation to timeout (check Vault logs for timeout settings)
 
-**Cause:** Wrong OTP used to decode token.
+3. If stuck, restart Vault (will clear all in-progress operations)
 
-**Solution:** Verify OTP matches the one from token generation and retry.
+### "illegal base64 data at input byte X"
+
+**Cause:** The encoded token from Vault cannot be base64-decoded.
+
+**Solution:** This indicates a server-side issue. Verify:
+- Vault version is 2.1.0 or later
+- The token was actually generated successfully (check logs)
+- The token string wasn't truncated or corrupted in copy/paste
+
+### "token and OTP length mismatch"
+
+**Cause:** The OTP and encoded token have incompatible lengths.
+
+**Solution:**
+- Ensure you're using the EXACT OTP and ENCODED_TOKEN from the generation output
+- Don't modify or shorten either value
+- Use copy/paste rather than manual typing
 
 ## Implementation Notes
 
-- Uses native Go HTTP client for Vault API communication
-- GPG decryption via subprocess call to `gpg` command
-- TLS certificate verification disabled (for emergency use; production should verify)
-- Structured logging with log/slog for operation tracing
-- OTP wrapping follows Vault's documented token protection procedure
-- Output to stdout enables piping and scripting
+- **Native HTTP client**: Uses Go's `net/http` for Vault API communication (no external dependencies)
+- **GPG decryption**: Subprocess call to `gpg` for secure key management
+- **TLS**: Certificate verification disabled for emergency scenarios (use environment variable to enable if needed)
+- **Structured logging**: Uses Go's `log/slog` for detailed operation tracing
+- **OTP encoding**: Matches Vault's official implementation (XOR + base64.RawStdEncoding)
+- **Token format**: Generates Vault root tokens with `hvs.` prefix (service token variant)
+- **Output to stdout**: Enables piping to environment variables or other tools
 
 ## Architecture
 
