@@ -106,6 +106,21 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
         fi
 
+    - name: Push Debian package to repository
+      if: success()
+      run: |
+        if [ -f vault-tool_*.deb ]; then
+          DEB_FILE=$(ls vault-tool_*.deb | head -1)
+          echo "Uploading $DEB_FILE to debs.golder.tech..."
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.DEBIAN_REPO_TOKEN }}" \
+            --data-binary "@$DEB_FILE" \
+            "https://debs.golder.tech/api/v1/dists/stable/main/upload" \
+            -v
+        else
+          echo "⚠️ No .deb file found, skipping upload to repository"
+        fi
+
     - name: Create Release
       uses: softprops/action-gh-release@v3
       env:
@@ -119,14 +134,23 @@ jobs:
 
           ### Installation
 
-          Download the `.deb` package from this release and install:
+          Add the Golder package repository:
+
+          ```bash
+          curl https://debs.golder.tech/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/golder-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/golder-archive-keyring.gpg] https://debs.golder.tech stable main" | sudo tee /etc/apt/sources.list.d/golder.sources.list
+          sudo apt update
+          sudo apt install vault-tool
+          ```
+
+          Or install the `.deb` package directly from this release:
 
           ```bash
           wget https://git.golder.lan/rossgolderltd/vault-tool/releases/download/${{ gitea.ref_name }}/vault-tool_*.deb
           sudo dpkg -i vault-tool_*.deb
           ```
 
-          Or test directly:
+          Then use it:
 
           ```bash
           vault-tool unseal --help
