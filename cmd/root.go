@@ -30,5 +30,6 @@ func Execute() error {
 func init() {
 	rootCmd.AddCommand(unsealCmd)
 	rootCmd.AddCommand(emergencyRootTokenCmd)
+	rootCmd.AddCommand(decodeTokenCmd)
 	rootCmd.AddCommand(versionCmd)
 }

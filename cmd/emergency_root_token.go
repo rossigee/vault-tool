@@ -17,6 +17,7 @@ var (
 	emergencyPassphrase  string
 	emergencyTokenTTL    string
 	emergencyQuiet       bool
+	emergencyUseOTP      bool
 )
 
 var emergencyRootTokenCmd = &cobra.Command{
@@ -35,6 +36,7 @@ func init() {
 	emergencyRootTokenCmd.Flags().StringVar(&emergencyPassphrase, "passphrase", "", "GPG passphrase (read from stdin if not provided)")
 	emergencyRootTokenCmd.Flags().StringVar(&emergencyTokenTTL, "ttl", "24h", "Token TTL (default 24 hours)")
 	emergencyRootTokenCmd.Flags().BoolVarP(&emergencyQuiet, "quiet", "q", false, "Suppress all logging output")
+	emergencyRootTokenCmd.Flags().BoolVar(&emergencyUseOTP, "use-otp", true, "Use OTP protection for token (following Vault documentation)")
 }
 
 func runEmergencyRootToken(cmd *cobra.Command, args []string) error {
@@ -86,7 +88,19 @@ func runEmergencyRootToken(cmd *cobra.Command, args []string) error {
 
 		if updateResp.Complete {
 			logger.Info("Root token generation completed successfully")
-			fmt.Println(updateResp.EncodedToken)
+
+			if emergencyUseOTP && initResp.OTP != "" {
+				// Output OTP and encoded token on separate lines
+				fmt.Printf("OTP=%s\n", initResp.OTP)
+				fmt.Printf("ENCODED_TOKEN=%s\n", updateResp.EncodedToken)
+				fmt.Fprintf(os.Stderr, "\n✓ Token generation complete with OTP protection\n")
+				fmt.Fprintf(os.Stderr, "To decode the token, run:\n")
+				fmt.Fprintf(os.Stderr, "  vault-tool decode-token ENCODED_TOKEN --otp OTP\n")
+				fmt.Fprintf(os.Stderr, "\nOr pipe directly:\n")
+				fmt.Fprintf(os.Stderr, "  vault-tool emergency-root-token | xargs -I {} vault-tool decode-token {}\n")
+			} else {
+				fmt.Println(updateResp.EncodedToken)
+			}
 			return nil
 		}
 	}

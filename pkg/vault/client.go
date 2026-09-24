@@ -30,9 +30,11 @@ type StatusResponse struct {
 }
 
 type InitRootTokenResponse struct {
-	Nonce string `json:"nonce"`
-	T     int    `json:"t"`
-	N     int    `json:"n"`
+	Nonce      string `json:"nonce"`
+	OTP        string `json:"otp"`
+	OTPLength  int    `json:"otp_length"`
+	T          int    `json:"t"`
+	N          int    `json:"n"`
 }
 
 type UpdateRootTokenResponse struct {
