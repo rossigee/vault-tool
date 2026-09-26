@@ -81,15 +81,15 @@ vault-tool emergency-root-token -f - | tee >(export VAULT_TOKEN=$(cat))
 # Alice generates token with OTP protection
 alice$ vault-tool emergency-root-token --use-otp
 # Output:
-# OTP=EXAMPLE_OTP_VALUE
-# ENCODED_TOKEN=EXAMPLE_ENCODED_TOKEN
+# OTP=EXAMPLE_OTP_VALUE_CHANGE_THIS
+# ENCODED_TOKEN=EXAMPLE_ENCODED_TOKEN_CHANGE_THIS
 
 # Alice sends OTP via Slack/Signal
 # Alice sends ENCODED_TOKEN via email
 
 # Bob receives both and decodes
-bob$ vault-tool decode-token EXAMPLE_ENCODED_TOKEN --otp EXAMPLE_OTP_VALUE
-# (example-plaintext-token)
+bob$ vault-tool decode-token EXAMPLE_ENCODED_TOKEN_CHANGE_THIS --otp EXAMPLE_OTP_VALUE_CHANGE_THIS
+# (outputs plaintext Vault token: hvs.XXXXXXXXXXXXXXXX...)
 ```
 
 ## Setup Requirements
