@@ -31,3 +31,27 @@ jobs:
         args: release --clean
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload .deb packages to debs.golder.tech
+      if: success()
+      run: |
+        # Extract version from git tag
+        VERSION="${GITHUB_REF#refs/tags/v}"
+
+        # Upload amd64 .deb
+        echo "Uploading vault-tool_${VERSION}_linux_amd64.deb..."
+        curl -X POST \
+          -H "Authorization: Bearer ${{ secrets.DEB_REPO_UPLOAD_TOKEN }}" \
+          --data-binary "@dist/vault-tool_${VERSION}_linux_amd64.deb" \
+          "https://debs.golder.tech/api/v1/upload?suite=stable&component=main" \
+          --fail-with-body || exit 1
+
+        # Upload arm64 .deb
+        echo "Uploading vault-tool_${VERSION}_linux_arm64.deb..."
+        curl -X POST \
+          -H "Authorization: Bearer ${{ secrets.DEB_REPO_UPLOAD_TOKEN }}" \
+          --data-binary "@dist/vault-tool_${VERSION}_linux_arm64.deb" \
+          "https://debs.golder.tech/api/v1/upload?suite=stable&component=main" \
+          --fail-with-body || exit 1
+
+        echo "✅ All .deb packages uploaded to debs.golder.tech"
