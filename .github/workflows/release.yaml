@@ -42,6 +42,7 @@ jobs:
         echo "Uploading vault-tool_${VERSION}_linux_amd64.deb..."
         curl -X POST \
           -H "Authorization: Bearer ${{ secrets.DEB_REPO_UPLOAD_TOKEN }}" \
+          -H "Content-Type: application/octet-stream" \
           --data-binary "@dist/vault-tool_${VERSION}_linux_amd64.deb" \
           "https://debs.golder.tech/api/v1/upload?suite=stable&component=main" \
           --fail-with-body || exit 1
@@ -50,6 +51,7 @@ jobs:
         echo "Uploading vault-tool_${VERSION}_linux_arm64.deb..."
         curl -X POST \
           -H "Authorization: Bearer ${{ secrets.DEB_REPO_UPLOAD_TOKEN }}" \
+          -H "Content-Type: application/octet-stream" \
           --data-binary "@dist/vault-tool_${VERSION}_linux_arm64.deb" \
           "https://debs.golder.tech/api/v1/upload?suite=stable&component=main" \
           --fail-with-body || exit 1
