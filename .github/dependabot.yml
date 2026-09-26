@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "rossigee"
+    assignees:
+      - "rossigee"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    pull-request-branch-name:
+      separator: "/"
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    rebase-strategy: "auto"
+    labels:
+      - "dependencies"
+      - "go"
