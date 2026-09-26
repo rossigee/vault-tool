@@ -106,30 +106,35 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
         fi
 
-    - name: Push Debian package to repository
-      if: success()
+    - name: Fetch CI upload token from Vault
+      id: vault
       run: |
-        if [ -z "${{ secrets.DEBIAN_REPO_TOKEN }}" ]; then
-          echo "⚠️ DEBIAN_REPO_TOKEN secret not configured; skipping upload"
-          echo "To enable: Set DEBIAN_REPO_TOKEN in repository secrets"
+        TOKEN=$(vault kv get --format=json infrastructure/debian-repo | jq -r '.data.data.CI_UPLOAD_TOKEN')
+        if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+          echo "⚠️ CI_UPLOAD_TOKEN not found in Vault at infrastructure/debian-repo"
           exit 0
         fi
+        echo "::add-mask::$TOKEN"
+        echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
+    - name: Push Debian package to repository
+      if: success() && steps.vault.outputs.token != ''
+      run: |
         if [ -f vault-tool_*.deb ]; then
           DEB_FILE=$(ls vault-tool_*.deb | head -1)
           DEB_SIZE=$(stat -c%s "$DEB_FILE" 2>/dev/null || stat -f%z "$DEB_FILE")
           echo "📦 Uploading $DEB_FILE ($(numfmt --to=iec $DEB_SIZE 2>/dev/null || echo $DEB_SIZE bytes)) to debs.golder.tech..."
 
           RESPONSE=$(curl -w "\n%{http_code}" -X POST \
-            -H "Authorization: Bearer ${{ secrets.DEBIAN_REPO_TOKEN }}" \
+            -H "Authorization: Bearer ${{ steps.vault.outputs.token }}" \
             --data-binary "@$DEB_FILE" \
-            "https://debs.golder.tech/api/v1/dists/stable/main/upload" \
+            "https://debs.golder.tech/api/v1/upload?suite=stable&component=main" \
             2>&1)
 
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | head -n-1)
 
-          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "202" ]; then
             echo "✅ Successfully uploaded to Debian repository"
             echo "Response: $BODY"
           else
