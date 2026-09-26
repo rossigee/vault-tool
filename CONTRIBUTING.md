@@ -3,7 +3,7 @@
 ## Getting Started
 
 ### Prerequisites
-- Go 1.23 or later
+- Go 1.27 or later
 - golangci-lint 2.13.2 or later
 - Make
 - Git
