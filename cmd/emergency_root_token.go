@@ -17,6 +17,7 @@ var (
 	emergencyKeysFile    string
 	emergencyPassphrase  string
 	emergencyTokenTTL    string
+	emergencyTokenUnlimited bool
 	emergencyVerbose     bool
 	emergencyDebug       bool
 	emergencyUseOTP      bool
@@ -41,7 +42,8 @@ func init() {
 	emergencyRootTokenCmd.Flags().StringVar(&emergencyAddr, "addr", "https://vault.bankrut.lan", "Vault address")
 	emergencyRootTokenCmd.Flags().StringVar(&emergencyKeysFile, "keys-file", os.ExpandEnv("$HOME/.config/vault/bankrut-unseal-keys.gpg"), "Path to GPG-encrypted unseal keys")
 	emergencyRootTokenCmd.Flags().StringVar(&emergencyPassphrase, "passphrase", "", "GPG passphrase (read from stdin if not provided)")
-	emergencyRootTokenCmd.Flags().StringVar(&emergencyTokenTTL, "ttl", "24h", "Token TTL (default 24 hours)")
+	emergencyRootTokenCmd.Flags().StringVar(&emergencyTokenTTL, "ttl", "24h", "Token TTL (default 24 hours, mutually exclusive with --unlimited)")
+	emergencyRootTokenCmd.Flags().BoolVar(&emergencyTokenUnlimited, "unlimited", false, "Create token without expiry (mutually exclusive with --ttl)")
 	emergencyRootTokenCmd.Flags().StringVarP(&emergencyTokenFile, "file", "f", os.ExpandEnv("$HOME/.vault-token"), "Output file for token (default: ~/.vault-token, use - for stdout)")
 	emergencyRootTokenCmd.Flags().BoolVarP(&emergencyVerbose, "verbose", "v", false, "Enable verbose (info-level) logging")
 	emergencyRootTokenCmd.Flags().BoolVarP(&emergencyDebug, "debug", "d", false, "Enable debug-level logging")
@@ -62,18 +64,29 @@ func runEmergencyRootToken(cmd *cobra.Command, args []string) error {
 	}
 	logger.Info("Decrypted unseal keys", "count", len(keys))
 
-	// Validate TTL is parseable
-	logger.Info("Validating TTL format", "ttl", emergencyTokenTTL)
-	_, err = time.ParseDuration(emergencyTokenTTL)
-	if err != nil {
-		return fmt.Errorf("invalid TTL: %w", err)
+	// Handle TTL or unlimited flag
+	var tokenTTL string
+	if emergencyTokenUnlimited {
+		if emergencyTokenTTL != "24h" {
+			return fmt.Errorf("--unlimited and --ttl are mutually exclusive")
+		}
+		logger.Info("Creating unlimited root token (no expiry)")
+		tokenTTL = ""
+	} else {
+		// Validate TTL is parseable
+		logger.Info("Validating TTL format", "ttl", emergencyTokenTTL)
+		_, err = time.ParseDuration(emergencyTokenTTL)
+		if err != nil {
+			return fmt.Errorf("invalid TTL: %w", err)
+		}
+		logger.Info("TTL is valid", "ttl", emergencyTokenTTL)
+		tokenTTL = emergencyTokenTTL
 	}
-	logger.Info("TTL is valid", "ttl", emergencyTokenTTL)
 
 	client := vault.NewClient(emergencyAddr)
 
 	logger.Info("Initializing root token generation process")
-	initResp, err := client.InitRootTokenGeneration(cmd.Context(), emergencyTokenTTL)
+	initResp, err := client.InitRootTokenGeneration(cmd.Context(), tokenTTL)
 	if err != nil {
 		return fmt.Errorf("failed to initialize root token generation: %w", err)
 	}
@@ -112,10 +125,10 @@ func runEmergencyRootToken(cmd *cobra.Command, args []string) error {
 				if err != nil {
 					return fmt.Errorf("failed to decode OTP-wrapped token: %w", err)
 				}
-				writeToken(decodedToken)
+				writeToken(decodedToken, tokenTTL, emergencyTokenUnlimited)
 			} else {
 				// No OTP protection - token is plaintext
-				writeToken(updateResp.EncodedToken)
+				writeToken(updateResp.EncodedToken, tokenTTL, emergencyTokenUnlimited)
 			}
 			return nil
 		}
@@ -124,7 +137,7 @@ func runEmergencyRootToken(cmd *cobra.Command, args []string) error {
 	return fmt.Errorf("root token generation incomplete after submitting all keys")
 }
 
-func writeToken(token string) error {
+func writeToken(token, ttl string, unlimited bool) error {
 	if emergencyTokenFile == "-" {
 		fmt.Println(token)
 		return nil
@@ -137,6 +150,10 @@ func writeToken(token string) error {
 	}
 
 	fmt.Fprintf(os.Stderr, "\n✓ Root token written to: %s\n", expandedPath)
-	fmt.Fprintf(os.Stderr, "Token TTL: %s\n", emergencyTokenTTL)
+	if unlimited {
+		fmt.Fprintf(os.Stderr, "Token TTL: unlimited (no expiry)\n")
+	} else {
+		fmt.Fprintf(os.Stderr, "Token TTL: %s\n", ttl)
+	}
 	return nil
 }

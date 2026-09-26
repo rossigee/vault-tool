@@ -132,6 +132,9 @@ func (c *Client) InitRootTokenGeneration(ctx context.Context, ttl string) (*Init
 	// No pgp_keys and no otp - unseal keys will be provided instead
 	// Vault will return an encoded token
 	payload := map[string]interface{}{}
+	if ttl != "" {
+		payload["ttl"] = ttl
+	}
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
