@@ -64,37 +64,32 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
         fi
 
-    - name: List artifacts
-      run: |
-        echo "Checking for binary artifacts..."
-        ls -lh vault-tool* 2>/dev/null || echo "No vault-tool files found"
-        find . -name "vault-tool*" -type f 2>/dev/null | head -10
-
     - name: Create Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: vault-tool-Linux-x86_64
-        body: |
-          ## vault-tool ${{ github.ref_name }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        if gh release view ${{ github.ref_name }} 2>/dev/null; then
+          echo "Release already exists, skipping creation"
+        else
+          echo "Creating release ${{ github.ref_name }}"
+          gh release create ${{ github.ref_name }} \
+            vault-tool-Linux-x86_64 \
+            --title "vault-tool ${{ github.ref_name }}" \
+            --notes "Binary release of vault-tool
 
-          ### Installation
+**Download:**
+\`\`\`bash
+wget https://github.com/rossigee/vault-tool/releases/download/${{ github.ref_name }}/vault-tool-Linux-x86_64
+chmod +x vault-tool-Linux-x86_64
+sudo mv vault-tool-Linux-x86_64 /usr/local/bin/vault-tool
+\`\`\`
 
-          Download and run the prebuilt binary:
-
-          ```bash
-          wget https://github.com/rossigee/vault-tool/releases/download/${{ github.ref_name }}/vault-tool-Linux-x86_64
-          chmod +x vault-tool-Linux-x86_64
-          sudo mv vault-tool-Linux-x86_64 /usr/local/bin/vault-tool
-          vault-tool version
-          ```
-
-          Or build from source:
-
-          ```bash
-          git clone https://github.com/rossigee/vault-tool.git
-          cd vault-tool && git checkout ${{ github.ref_name }}
-          make build && sudo install -m 0755 vault-tool /usr/local/bin/
-          ```
-
-        draft: false
-        prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+**Or build from source:**
+\`\`\`bash
+git clone https://github.com/rossigee/vault-tool.git
+cd vault-tool && git checkout ${{ github.ref_name }}
+make build && sudo install -m 0755 vault-tool /usr/local/bin/
+\`\`\`
+" \
+            $( [[ "${{ github.ref_name }}" =~ -rc|-beta|-alpha ]] && echo "--prerelease" || echo "" )
+        fi
