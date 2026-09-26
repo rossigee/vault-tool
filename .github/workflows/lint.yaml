@@ -21,7 +21,7 @@ jobs:
 
     - name: Run golangci-lint
       run: |
-        VERSION=2.13.2
+        VERSION=2.63.2
         BINDIR=$(go env GOPATH)/bin
         mkdir -p "$BINDIR"
         TARBALL="golangci-lint-${VERSION}-linux-amd64.tar.gz"
