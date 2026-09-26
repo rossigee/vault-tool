@@ -33,9 +33,6 @@ nfpms:
     section: "admin"
     formats:
       - deb
-    architectures:
-      - amd64
-      - arm64
     bindir: /usr/bin
     contents:
       - src: ./README.md
@@ -43,8 +40,9 @@ nfpms:
       - src: ./LICENSE
         dst: /usr/share/doc/vault-tool/LICENSE
 
-checksums:
+checksum:
   name_template: "checksums.txt"
+  algorithm: sha256
 
 release:
   github:
