@@ -38,6 +38,7 @@ jobs:
       run: go mod download
 
     - name: Build binary
+      id: build
       run: |
         VERSION="${{ github.event.inputs.tag || github.ref_name }}"
         VERSION=${VERSION#v}
@@ -49,32 +50,13 @@ jobs:
         chmod +x "$BINARY_NAME"
         ./"$BINARY_NAME" version
         ls -lh "$BINARY_NAME"
+        echo "binary=$BINARY_NAME" >> $GITHUB_OUTPUT
         echo "✅ Binary built: $BINARY_NAME"
 
-    - name: Generate changelog
-      id: changelog
-      run: |
-        PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ || echo "")
-        if [ -z "$PREV_TAG" ]; then
-          echo "changelog=Initial release" >> $GITHUB_OUTPUT
-        else
-          CHANGELOG=$(git log --pretty=format:"- %s" $PREV_TAG..HEAD | grep -E "^- (feat|fix|perf|refactor|security|build):" || echo "- Various improvements")
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-        fi
-
-    - name: Show artifacts
-      run: |
-        echo "Build artifacts:"
-        ls -lh vault-tool* 2>/dev/null || echo "No artifacts found"
-
-    # TODO: Fix release creation - see GitHub Actions logs for details
-    # - name: Create Release
-    #   env:
-    #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #   run: |
-    #     TAG=${{ github.ref_name }}
-    #     echo "Creating release: $TAG"
-    #     gh release create "$TAG" vault-tool-Linux-x86_64 \
-    #       --title "vault-tool $TAG" --notes "Binary release"
+    - name: Create Release
+      uses: ncipollo/release-action@v1
+      with:
+        tag: ${{ github.ref_name }}
+        artifacts: ${{ steps.build.outputs.binary }}
+        body: "Binary release of vault-tool"
+        draft: false
