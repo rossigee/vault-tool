@@ -68,28 +68,10 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        if gh release view ${{ github.ref_name }} 2>/dev/null; then
-          echo "Release already exists, skipping creation"
-        else
-          echo "Creating release ${{ github.ref_name }}"
-          gh release create ${{ github.ref_name }} \
-            vault-tool-Linux-x86_64 \
-            --title "vault-tool ${{ github.ref_name }}" \
-            --notes "Binary release of vault-tool
-
-**Download:**
-\`\`\`bash
-wget https://github.com/rossigee/vault-tool/releases/download/${{ github.ref_name }}/vault-tool-Linux-x86_64
-chmod +x vault-tool-Linux-x86_64
-sudo mv vault-tool-Linux-x86_64 /usr/local/bin/vault-tool
-\`\`\`
-
-**Or build from source:**
-\`\`\`bash
-git clone https://github.com/rossigee/vault-tool.git
-cd vault-tool && git checkout ${{ github.ref_name }}
-make build && sudo install -m 0755 vault-tool /usr/local/bin/
-\`\`\`
-" \
-            $( [[ "${{ github.ref_name }}" =~ -rc|-beta|-alpha ]] && echo "--prerelease" || echo "" )
-        fi
+        TAG=${{ github.ref_name }}
+        echo "Creating release: $TAG"
+        ls -lh vault-tool-Linux-x86_64
+        gh release create "$TAG" \
+          vault-tool-Linux-x86_64 \
+          --title "vault-tool $TAG" \
+          --notes "Binary release of vault-tool"
