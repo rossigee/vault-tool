@@ -4,7 +4,7 @@
 
 ### Prerequisites
 - Go 1.27 or later
-- golangci-lint 2.13.2 or later
+- golangci-lint 2.14.0 or later
 - Make
 - Git
 
@@ -94,18 +94,19 @@ Before submitting a PR, ensure:
 
 ## Release Process
 
-Releases are automated via semantic versioning:
+Releases are automated via GoReleaser:
 
-1. **Update VERSION file** to desired semver (e.g., `0.2.0`)
-2. **Commit version bump**: `git commit -m "chore: bump to v0.2.0"`
-3. **Tag as semantic version**: `git tag v0.2.0`
-4. **Push to trigger release**: `git push origin master v0.2.0`
+1. **Tag the release**: `git tag v0.2.0` (must match semantic versioning)
+2. **Push to trigger release**: `git push origin v0.2.0`
 
-The CI workflow will:
-- Build the `.deb` package
-- Generate a changelog from commits
-- Create a Gitea release with the `.deb` attached
+The GitHub Actions workflow will:
+- Build binaries for Linux amd64 and arm64
+- Package both .tar.gz archives and .deb packages for each architecture
+- Generate a changelog from commits matching `^(feat|fix|perf|refactor|security|build):`
+- Create a GitHub release with all artifacts attached
 - Mark as prerelease if tag contains `-rc`, `-beta`, or `-alpha`
+
+**Local testing:** Run `make release-snapshot` to dry-run the full release build locally without pushing to GitHub.
 
 ## Security
 

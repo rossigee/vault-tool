@@ -9,13 +9,13 @@ BUILD_TIME := $(shell LC_ALL=C date -u +%Y-%m-%dT%H:%M:%SZ)
 
 help:
 	@echo "Makefile targets:"
-	@echo "  make build           - Build the binary"
-	@echo "  make test            - Run tests"
-	@echo "  make lint            - Run linters"
-	@echo "  make fmt             - Format code"
-	@echo "  make vet             - Run go vet"
-	@echo "  make clean           - Clean build artifacts"
-	@echo "  make deb             - Build Debian package"
+	@echo "  make build             - Build the binary"
+	@echo "  make test              - Run tests"
+	@echo "  make lint              - Run linters"
+	@echo "  make fmt               - Format code"
+	@echo "  make vet               - Run go vet"
+	@echo "  make clean             - Clean build artifacts"
+	@echo "  make release-snapshot  - Test multi-arch release build (GoReleaser snapshot)"
 
 build:
 	@echo "Building $(BINARY_NAME) v$(VERSION)..."
@@ -46,9 +46,11 @@ clean:
 	@echo "Cleaning build artifacts..."
 	rm -f $(BINARY_NAME)
 	rm -f coverage.out
+	rm -rf dist/
 	@echo "✅ Clean complete"
 
-deb:
-	@echo "Building Debian package..."
-	dpkg-buildpackage -us -uc -b
-	@echo "✅ Debian package built"
+release-snapshot:
+	@echo "Building snapshot release with GoReleaser..."
+	@command -v goreleaser >/dev/null || (echo "Installing GoReleaser..." && go install github.com/goreleaser/goreleaser@latest)
+	goreleaser release --snapshot --clean --skip=publish
+	@echo "✅ Release snapshot built in dist/"

@@ -2,7 +2,7 @@
 
 A Go CLI tool for Vault emergency access and maintenance, providing sealed instance unsealing and emergency root token generation with OTP protection.
 
-**Latest Release:** v0.2.2
+**Latest Release:** v0.2.3
 
 ## Overview
 
@@ -39,14 +39,46 @@ This tool enables operators to unseal a sealed Vault instance and generate tempo
 
 ## Installation
 
+### Option 1: Download prebuilt binary or Debian package from GitHub Releases
+
+Download from [Releases](https://github.com/rossigee/vault-tool/releases):
+
+**Linux amd64:**
 ```bash
-go build -o vault-tool
+# Tarball
+wget https://github.com/rossigee/vault-tool/releases/download/v0.2.3/vault-tool_0.2.3_linux_amd64.tar.gz
+tar -xzf vault-tool_0.2.3_linux_amd64.tar.gz
+sudo install -m 0755 vault-tool /usr/local/bin/
+
+# Or .deb package
+wget https://github.com/rossigee/vault-tool/releases/download/v0.2.3/vault-tool_0.2.3_linux_amd64.deb
+sudo dpkg -i vault-tool_0.2.3_linux_amd64.deb
 ```
 
-Or with version injection:
+**Linux arm64:**
+```bash
+# Tarball
+wget https://github.com/rossigee/vault-tool/releases/download/v0.2.3/vault-tool_0.2.3_linux_arm64.tar.gz
+tar -xzf vault-tool_0.2.3_linux_arm64.tar.gz
+sudo install -m 0755 vault-tool /usr/local/bin/
+
+# Or .deb package
+wget https://github.com/rossigee/vault-tool/releases/download/v0.2.3/vault-tool_0.2.3_linux_arm64.deb
+sudo dpkg -i vault-tool_0.2.3_linux_arm64.deb
+```
+
+### Option 2: Install from source
 
 ```bash
-go build -ldflags "-X github.com/rossigee/vault-tool/internal/version.Version=$(cat VERSION)" -o vault-tool
+go install github.com/rossigee/vault-tool@latest
+```
+
+Or build locally:
+
+```bash
+git clone https://github.com/rossigee/vault-tool.git
+cd vault-tool
+go build -o vault-tool
 ```
 
 ## Emergency Workflow
@@ -221,8 +253,8 @@ After configuration, `vault-tool emergency-root-token` will work using only the 
 **Cause:** GPG passphrase incorrect or unseal keys file not found.
 
 **Solution:**
-1. Verify file exists: `ls ~/.config/vault/bankrut-unseal-keys.gpg`
-2. Verify passphrase: `gpg -d ~/.config/vault/bankrut-unseal-keys.gpg`
+1. Verify file exists: `ls ~/.config/vault/unseal-keys.gpg`
+2. Verify passphrase: `gpg -d ~/.config/vault/unseal-keys.gpg`
 3. Create file if missing with correct keys
 
 ### "root generation already in progress"
