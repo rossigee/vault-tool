@@ -1,3 +1,12 @@
+vault-tool (0.2.2) unstable; urgency=medium
+
+  * Fix Debian repository API endpoint in release workflow
+  * Fetch CI token directly from Vault (infrastructure/debian-repo)
+  * Improved error handling and validation in CI/CD pipeline
+  * Auto-deploy to debs.golder.tech on release
+
+ -- Ross Golder <ross@golder.org>  Sat, 26 Sep 2026 14:30:00 +0000
+
 vault-tool (0.2.1) unstable; urgency=medium
 
   * Fix TTL values in Vault API requests
