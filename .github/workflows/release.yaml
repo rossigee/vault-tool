@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v0.1.6)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-debian-package:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    - name: Install build dependencies
+      run: |
+        apt-get update
+        apt-get install -y \
+          build-essential \
+          debhelper \
+          debhelper-compat \
+          devscripts \
+          git
+
+    - name: Download Go dependencies
+      run: go mod download
+
+    - name: Update debian/changelog
+      run: |
+        TAG_NAME="${{ github.event.inputs.tag || github.ref_name }}"
+        if [ -z "$TAG_NAME" ]; then
+          echo "Error: No tag specified"
+          exit 1
+        fi
+        VERSION=${TAG_NAME#v}
+        echo "Building version: $VERSION"
+        dch --newversion "$VERSION" --distribution unstable "Release $VERSION"
+
+    - name: Build Debian package
+      run: |
+        dpkg-buildpackage -us -uc -b
+        cp ../*.deb . || true
+
+    - name: List built packages
+      run: ls -lh *.deb || echo "No debs found in current dir"
+
+    - name: Test package installation
+      run: |
+        if [ -f vault-tool_*.deb ]; then
+          dpkg -i vault-tool_*.deb || \
+            (apt-get install -f -y && dpkg -i vault-tool_*.deb)
+          vault-tool version
+          vault-tool --help | head -5
+        else
+          echo "No .deb file found to test"
+        fi
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ || echo "")
+        if [ -z "$PREV_TAG" ]; then
+          echo "changelog=Initial release" >> $GITHUB_OUTPUT
+        else
+          CHANGELOG=$(git log --pretty=format:"- %s" $PREV_TAG..HEAD | grep -E "^- (feat|fix|perf|refactor|security|build):" || echo "- Various improvements")
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        body: |
+          ## vault-tool ${{ github.ref_name }}
+
+          ### Changes
+          ${{ steps.changelog.outputs.changelog }}
+
+          ### Installation
+
+          #### Direct Download
+          Download the `.deb` package from this release and install it:
+
+          ```bash
+          wget https://github.com/rossigee/vault-tool/releases/download/${{ github.ref_name }}/vault-tool_*.deb
+          sudo dpkg -i vault-tool_*.deb
+          ```
+
+          #### Build from Source
+          ```bash
+          git clone https://github.com/rossigee/vault-tool.git
+          cd vault-tool
+          git checkout ${{ github.ref_name }}
+          make build
+          sudo install -m 0755 vault-tool /usr/local/bin/
+          ```
+
+          Then use it:
+
+          ```bash
+          vault-tool unseal --help
+          vault-tool emergency-root-token --help
+          ```
+
+        files: vault-tool_*.deb
+        draft: false
+        prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}

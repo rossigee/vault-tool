@@ -1,12 +1,12 @@
 #!/bin/bash
-# Manual release trigger script for vault-tool
-# Usage: ./trigger-release.sh v0.1.6
+# Release trigger script for vault-tool
+# Usage: ./trigger-release.sh v0.2.2
 
 set -euo pipefail
 
 if [ $# -ne 1 ]; then
   echo "Usage: $0 <tag>"
-  echo "Example: $0 v0.1.6"
+  echo "Example: $0 v0.2.2"
   exit 1
 fi
 
@@ -18,20 +18,15 @@ if ! git rev-parse "$TAG" > /dev/null 2>&1; then
   exit 1
 fi
 
-echo "Triggering release build for tag: $TAG"
+echo "Triggering release for tag: $TAG"
 echo ""
-echo "Option 1: Manually push the tag to trigger Gitea Actions"
+echo "Option 1: Push the tag to GitHub to trigger the release workflow"
 echo "  git push origin $TAG"
 echo ""
-echo "Option 2: Use Gitea web UI to manually dispatch the workflow"
-echo "  1. Go to https://git.golder.lan/rossgolderltd/vault-tool/actions"
-echo "  2. Click 'Release' workflow"
-echo "  3. Click 'Run workflow'"
-echo "  4. Enter tag: $TAG"
-echo "  5. Click 'Run workflow'"
+echo "Option 2: Use GitHub CLI to manually dispatch the workflow"
+echo "  gh workflow run release.yaml -f tag=$TAG"
 echo ""
-echo "Option 3: Use Gitea API (requires token in GITEA_TOKEN env var)"
-echo "  curl -X POST -H 'Authorization: token \$GITEA_TOKEN' \\"
-echo "    https://git.golder.lan/api/v1/repos/rossgolderltd/vault-tool/actions/workflows/release.yaml/dispatches \\"
-echo "    -H 'Content-Type: application/json' \\"
-echo "    -d '{\"ref\":\"master\",\"inputs\":{\"tag\":\"$TAG\"}}'"
+echo "The release workflow will:"
+echo "  - Build the Debian package"
+echo "  - Run tests and security scans"
+echo "  - Create a GitHub Release with the .deb attached"

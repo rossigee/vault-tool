@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"git.golder.lan/rossgolderltd/vault-tool/cmd"
+	"github.com/rossigee/vault-tool/cmd"
 )
 
 func main() {

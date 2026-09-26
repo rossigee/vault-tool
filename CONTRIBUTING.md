@@ -3,7 +3,7 @@
 ## Getting Started
 
 ### Prerequisites
-- Go 1.27.1 or later
+- Go 1.23 or later
 - golangci-lint 2.13.2 or later
 - Make
 - Git
@@ -12,7 +12,7 @@
 
 ```bash
 # Clone the repository
-git clone git@git.golder.lan:rossgolderltd/vault-tool.git
+git clone https://github.com/rossigee/vault-tool.git
 cd vault-tool
 
 # Build the binary
@@ -115,4 +115,4 @@ The CI workflow will:
 
 ## Questions?
 
-Open an issue on the [project repository](https://git.golder.lan/rossgolderltd/vault-tool) or contact the maintainers.
+Open an issue on the [project repository](https://github.com/rossigee/vault-tool) or contact the maintainers.

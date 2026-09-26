@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Ross Golder <ross@golder.org>
 Build-Depends: debhelper-compat (= 13)
 Standards-Version: 4.6.2
-Homepage: https://git.golder.lan/rossgolderltd/vault-tool
+Homepage: https://github.com/rossigee/vault-tool
 
 Package: vault-tool
 Architecture: any

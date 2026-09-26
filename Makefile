@@ -19,7 +19,7 @@ help:
 
 build:
 	@echo "Building $(BINARY_NAME) v$(VERSION)..."
-	go build -ldflags "-X git.golder.lan/rossgolderltd/vault-tool/internal/version.Version=$(VERSION) -X git.golder.lan/rossgolderltd/vault-tool/internal/version.Commit=$(COMMIT) -X git.golder.lan/rossgolderltd/vault-tool/internal/version.BuildTime=$(BUILD_TIME)" -o $(BINARY_NAME) .
+	go build -ldflags "-X github.com/rossigee/vault-tool/internal/version.Version=$(VERSION) -X github.com/rossigee/vault-tool/internal/version.Commit=$(COMMIT) -X github.com/rossigee/vault-tool/internal/version.BuildTime=$(BUILD_TIME)" -o $(BINARY_NAME) .
 	@echo "✅ Build complete: $(BINARY_NAME)"
 
 test:

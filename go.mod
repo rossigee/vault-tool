@@ -1,4 +1,4 @@
-module git.golder.lan/rossgolderltd/vault-tool
+module github.com/rossigee/vault-tool
 
 go 1.23
 

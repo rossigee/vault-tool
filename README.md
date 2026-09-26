@@ -44,7 +44,7 @@ go build -o vault-tool
 Or with version injection:
 
 ```bash
-go build -ldflags "-X git.golder.lan/rossgolderltd/vault-tool/internal/version.Version=$(cat VERSION)" -o vault-tool
+go build -ldflags "-X github.com/rossigee/vault-tool/internal/version.Version=$(cat VERSION)" -o vault-tool
 ```
 
 ## Emergency Workflow
@@ -111,7 +111,7 @@ Store your unseal keys in an encrypted file:
 
 ```bash
 # Create encrypted file with unseal keys
-printf 'key1\nkey2\nkey3\n' | gpg -e -r user@example.com -o ~/.config/vault/bankrut-unseal-keys.gpg
+printf 'key1\nkey2\nkey3\n' | gpg -e -r user@example.com -o ~/.config/vault/unseal-keys.gpg
 ```
 
 Replace `key1`, `key2`, `key3` with your actual Vault unseal keys and `user@example.com` with your GPG key ID.
@@ -127,8 +127,8 @@ Replace `key1`, `key2`, `key3` with your actual Vault unseal keys and `user@exam
 Prompts for GPG passphrase, then submits unseal keys to unseal Vault.
 
 **Options:**
-- `--addr` - Vault address (default: `https://vault.bankrut.lan`)
-- `--keys-file` - Path to GPG-encrypted unseal keys (default: `$HOME/.config/vault/bankrut-unseal-keys.gpg`)
+- `--addr` - Vault address (default: `https://vault.example.com`)
+- `--keys-file` - Path to GPG-encrypted unseal keys (default: `$HOME/.config/vault/unseal-keys.gpg`)
 - `--passphrase` - GPG passphrase (prompts if not provided)
 - `-q, --quiet` - Suppress logging output
 
@@ -141,8 +141,8 @@ Prompts for GPG passphrase, then submits unseal keys to unseal Vault.
 **Default behavior:** Quiet, decrypts unseal keys, generates root token, auto-decodes OTP wrapping, writes plaintext token to `~/.vault-token` with 0600 permissions.
 
 **Options:**
-- `--addr` - Vault address (default: `https://vault.bankrut.lan`)
-- `--keys-file` - Path to GPG-encrypted unseal keys (default: `$HOME/.config/vault/bankrut-unseal-keys.gpg`)
+- `--addr` - Vault address (default: `https://vault.example.com`)
+- `--keys-file` - Path to GPG-encrypted unseal keys (default: `$HOME/.config/vault/unseal-keys.gpg`)
 - `--passphrase` - GPG passphrase (prompts if not provided)
 - `--ttl` - Token TTL (default: `24h`, e.g., `1h`, `72h`, `7d`)
 - `-f, --file` - Output file for token (default: `~/.vault-token`, use `-f -` for stdout)
@@ -260,7 +260,7 @@ vault write sys/generate-root/cancel
 
 - **Native HTTP client**: Uses Go's `net/http` for Vault API communication (no external dependencies)
 - **GPG decryption**: Subprocess call to `gpg` for secure key management
-- **TLS**: Certificate verification disabled for emergency scenarios (use environment variable to enable if needed)
+- **TLS**: Full certificate verification enabled (required for all connections)
 - **Structured logging**: Uses Go's `log/slog` for detailed operation tracing
 - **OTP encoding**: Matches Vault's official implementation (XOR + base64.RawStdEncoding)
 - **Token format**: Generates Vault root tokens with `hvs.` prefix (service token variant)

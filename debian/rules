@@ -15,7 +15,7 @@ override_dh_auto_clean:
 	rm -f vault-tool
 
 override_dh_auto_build:
-	go build -ldflags "-X git.golder.lan/rossgolderltd/vault-tool/internal/version.Version=$(shell cat VERSION)" -o vault-tool .
+	go build -ldflags "-X github.com/rossigee/vault-tool/internal/version.Version=$(shell cat VERSION)" -o vault-tool .
 
 override_dh_auto_install:
 	install -D -m 0755 vault-tool debian/vault-tool/usr/bin/vault-tool

@@ -4,6 +4,7 @@ vault-tool
 *.deb
 *.buildinfo
 *.changes
+debian/files
 debian/vault-tool/
 debian/.debhelper/
 .debhelper

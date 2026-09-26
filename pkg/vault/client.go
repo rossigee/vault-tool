@@ -3,7 +3,6 @@ package vault
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -46,19 +45,9 @@ type UpdateRootTokenResponse struct {
 }
 
 func NewClient(addr string) *Client {
-	// Create client with TLS config that doesn't verify certs (for testing/emergency use)
-	// In production, this should use proper certificate verification
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-	}
-
 	return &Client{
 		addr:   addr,
-		client: client,
+		client: &http.Client{},
 	}
 }
 

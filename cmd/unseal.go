@@ -5,9 +5,9 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"git.golder.lan/rossgolderltd/vault-tool/internal/logger"
-	"git.golder.lan/rossgolderltd/vault-tool/pkg/gpg"
-	"git.golder.lan/rossgolderltd/vault-tool/pkg/vault"
+	"github.com/rossigee/vault-tool/internal/logger"
+	"github.com/rossigee/vault-tool/pkg/gpg"
+	"github.com/rossigee/vault-tool/pkg/vault"
 )
 
 var (
@@ -33,8 +33,8 @@ var unsealCmd = &cobra.Command{
 }
 
 func init() {
-	unsealCmd.Flags().StringVar(&unsealAddr, "addr", "https://vault.bankrut.lan", "Vault address")
-	unsealCmd.Flags().StringVar(&unsealKeysFile, "keys-file", os.ExpandEnv("$HOME/.config/vault/bankrut-unseal-keys.gpg"), "Path to GPG-encrypted unseal keys")
+	unsealCmd.Flags().StringVar(&unsealAddr, "addr", "https://vault.example.com", "Vault address")
+	unsealCmd.Flags().StringVar(&unsealKeysFile, "keys-file", os.ExpandEnv("$HOME/.config/vault/unseal-keys.gpg"), "Path to GPG-encrypted unseal keys")
 	unsealCmd.Flags().StringVar(&unsealPassphrase, "passphrase", "", "GPG passphrase (read from stdin if not provided)")
 	unsealCmd.Flags().BoolVarP(&unsealVerbose, "verbose", "v", false, "Enable verbose (info-level) logging")
 	unsealCmd.Flags().BoolVarP(&unsealDebug, "debug", "d", false, "Enable debug-level logging")

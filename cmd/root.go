@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"git.golder.lan/rossgolderltd/vault-tool/internal/version"
+	"github.com/rossigee/vault-tool/internal/version"
 )
 
 var rootCmd = &cobra.Command{

@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"git.golder.lan/rossgolderltd/vault-tool/internal/logger"
-	"git.golder.lan/rossgolderltd/vault-tool/pkg/gpg"
-	"git.golder.lan/rossgolderltd/vault-tool/pkg/otp"
-	"git.golder.lan/rossgolderltd/vault-tool/pkg/vault"
+	"github.com/rossigee/vault-tool/internal/logger"
+	"github.com/rossigee/vault-tool/pkg/gpg"
+	"github.com/rossigee/vault-tool/pkg/otp"
+	"github.com/rossigee/vault-tool/pkg/vault"
 )
 
 var (
@@ -39,8 +39,8 @@ var emergencyRootTokenCmd = &cobra.Command{
 }
 
 func init() {
-	emergencyRootTokenCmd.Flags().StringVar(&emergencyAddr, "addr", "https://vault.bankrut.lan", "Vault address")
-	emergencyRootTokenCmd.Flags().StringVar(&emergencyKeysFile, "keys-file", os.ExpandEnv("$HOME/.config/vault/bankrut-unseal-keys.gpg"), "Path to GPG-encrypted unseal keys")
+	emergencyRootTokenCmd.Flags().StringVar(&emergencyAddr, "addr", "https://vault.example.com", "Vault address")
+	emergencyRootTokenCmd.Flags().StringVar(&emergencyKeysFile, "keys-file", os.ExpandEnv("$HOME/.config/vault/unseal-keys.gpg"), "Path to GPG-encrypted unseal keys")
 	emergencyRootTokenCmd.Flags().StringVar(&emergencyPassphrase, "passphrase", "", "GPG passphrase (read from stdin if not provided)")
 	emergencyRootTokenCmd.Flags().StringVar(&emergencyTokenTTL, "ttl", "24h", "Token TTL (default 24 hours, mutually exclusive with --unlimited)")
 	emergencyRootTokenCmd.Flags().BoolVar(&emergencyTokenUnlimited, "unlimited", false, "Create token without expiry (mutually exclusive with --ttl)")

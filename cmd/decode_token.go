@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"git.golder.lan/rossgolderltd/vault-tool/internal/logger"
-	"git.golder.lan/rossgolderltd/vault-tool/pkg/otp"
+	"github.com/rossigee/vault-tool/internal/logger"
+	"github.com/rossigee/vault-tool/pkg/otp"
 )
 
 var (
