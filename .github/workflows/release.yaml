@@ -46,16 +46,22 @@ jobs:
         ./"$BINARY_NAME" version
         ls -lh "$BINARY_NAME"
         echo "binary=$BINARY_NAME" >> $GITHUB_OUTPUT
-        echo "✅ Binary built: $BINARY_NAME"
 
-    # Release creation disabled - artifact builds successfully
-    # Releases can be created manually via GitHub web UI:
-    # 1. Go to https://github.com/rossigee/vault-tool/releases
-    # 2. Click "Draft a new release"
-    # 3. Select tag, add notes, upload vault-tool-Linux-x86_64 binary
-
-    - name: Summary
+    - name: Build Debian package
       run: |
-        echo "✅ Build succeeded for ${{ github.ref_name }}"
-        echo "Binary: vault-tool-Linux-x86_64 (11MB)"
-        echo "Manual release: https://github.com/rossigee/vault-tool/releases"
+        apt-get update
+        apt-get install -y build-essential debhelper devscripts
+        dpkg-buildpackage -us -uc -b
+        mkdir -p ./debs
+        cp ../*.deb ./debs/ || true
+        ls -lh ./debs/
+
+    - name: Create Release
+      uses: ncipollo/release-action@v1
+      with:
+        tag: ${{ github.ref_name }}
+        artifacts: |
+          ${{ steps.build.outputs.binary }}
+          debs/*.deb
+        body: "vault-tool ${{ github.ref_name }}\n\nIncludes:\n- Binary for Linux x86_64\n- Debian package (.deb)"
+        draft: false
