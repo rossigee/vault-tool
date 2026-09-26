@@ -2,6 +2,8 @@
 
 A Go CLI tool for Vault emergency access and maintenance, providing sealed instance unsealing and emergency root token generation with OTP protection.
 
+**Latest Release:** v0.2.2
+
 ## Overview
 
 `vault-tool` is a **break-glass emergency tool** for Vault incident response. Normal admin operations should use OIDC or other per-user authentication for audit trail purposes. 
