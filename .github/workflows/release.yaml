@@ -42,6 +42,11 @@ jobs:
     - name: Download Go dependencies
       run: go mod download
 
+    - name: Configure git for dch
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+
     - name: Update debian/changelog
       run: |
         TAG_NAME="${{ github.event.inputs.tag || github.ref_name }}"
@@ -51,25 +56,32 @@ jobs:
         fi
         VERSION=${TAG_NAME#v}
         echo "Building version: $VERSION"
+        echo "$VERSION" > VERSION
         dch --newversion "$VERSION" --distribution unstable "Release $VERSION"
 
     - name: Build Debian package
       run: |
-        dpkg-buildpackage -us -uc -b
-        cp ../*.deb . || true
-
-    - name: List built packages
-      run: ls -lh *.deb || echo "No debs found in current dir"
+        cd /tmp
+        cp -r $GITHUB_WORKSPACE vault-tool-build
+        cd vault-tool-build
+        dpkg-buildpackage -us -uc -b -d
+        mkdir -p $GITHUB_WORKSPACE/debs
+        cp /tmp/vault-tool_*.deb $GITHUB_WORKSPACE/debs/ || true
+        cd $GITHUB_WORKSPACE
+        ls -lh debs/ || echo "No debs found"
 
     - name: Test package installation
       run: |
-        if [ -f vault-tool_*.deb ]; then
-          dpkg -i vault-tool_*.deb || \
-            (apt-get install -f -y && dpkg -i vault-tool_*.deb)
+        if [ -f debs/vault-tool_*.deb ]; then
+          DEB_FILE=$(ls debs/vault-tool_*.deb | head -1)
+          echo "Testing installation of $DEB_FILE"
+          dpkg -i "$DEB_FILE" || \
+            (apt-get update && apt-get install -f -y && dpkg -i "$DEB_FILE")
           vault-tool version
           vault-tool --help | head -5
+          echo "✅ Package installation successful"
         else
-          echo "No .deb file found to test"
+          echo "⚠️ No .deb file found to test"
         fi
 
     - name: Generate changelog
@@ -102,7 +114,8 @@ jobs:
           Download the `.deb` package from this release and install it:
 
           ```bash
-          wget https://github.com/rossigee/vault-tool/releases/download/${{ github.ref_name }}/vault-tool_*.deb
+          RELEASE_TAG=${{ github.ref_name }}
+          wget https://github.com/rossigee/vault-tool/releases/download/$RELEASE_TAG/vault-tool_*.deb
           sudo dpkg -i vault-tool_*.deb
           ```
 
@@ -122,6 +135,6 @@ jobs:
           vault-tool emergency-root-token --help
           ```
 
-        files: vault-tool_*.deb
+        files: debs/vault-tool_*.deb
         draft: false
         prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
