@@ -32,60 +32,22 @@ jobs:
     - name: Install build dependencies
       run: |
         apt-get update
-        apt-get install -y \
-          build-essential \
-          debhelper \
-          debhelper-compat \
-          devscripts \
-          git
+        apt-get install -y git
 
     - name: Download Go dependencies
       run: go mod download
 
-    - name: Configure git for dch
+    - name: Build binary
       run: |
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
-
-    - name: Update debian/changelog
-      run: |
-        TAG_NAME="${{ github.event.inputs.tag || github.ref_name }}"
-        if [ -z "$TAG_NAME" ]; then
-          echo "Error: No tag specified"
-          exit 1
-        fi
-        VERSION=${TAG_NAME#v}
-        echo "Building version: $VERSION"
-        echo "$VERSION" > VERSION
-        dch --newversion "$VERSION" --distribution unstable "Release $VERSION"
-
-    - name: Build Debian package
-      run: |
-        echo "Building Debian package from master directory..."
-        dpkg-buildpackage -us -uc -b
-        mkdir -p debs
-        mv ../*.deb debs/ || true
-        echo "Contents of parent directory:"
-        ls -lh ../ | grep -E "\.deb|\.buildinfo|\.changes" || echo "No build artifacts in parent"
-        echo "Contents of debs directory:"
-        ls -lh debs/
-
-    - name: Test package installation
-      run: |
-        DEB_FILE=$(find . -name "vault-tool_*.deb" -type f | head -1)
-        if [ -n "$DEB_FILE" ]; then
-          echo "Testing installation of $DEB_FILE"
-          apt-get update && apt-get install -y --no-install-recommends "$DEB_FILE" || \
-            (echo "Direct install failed, trying with -f:" && apt-get install -f -y && dpkg -i "$DEB_FILE")
-          vault-tool version
-          vault-tool --help | head -5
-          echo "✅ Package installation successful"
-        else
-          echo "⚠️ No .deb file found to test"
-          echo "Looking for debs:"
-          find . -name "*.deb" -type f 2>/dev/null || echo "No .deb files found"
-          exit 1
-        fi
+        VERSION="${{ github.event.inputs.tag || github.ref_name }}"
+        VERSION=${VERSION#v}
+        echo "Building vault-tool v$VERSION"
+        go build \
+          -ldflags "-X github.com/rossigee/vault-tool/internal/version.Version=$VERSION -X github.com/rossigee/vault-tool/internal/version.Commit=${{ github.sha }} -X github.com/rossigee/vault-tool/internal/version.BuildTime=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+          -o vault-tool-${{ runner.os }}-${{ runner.arch }} .
+        chmod +x vault-tool-${{ runner.os }}-${{ runner.arch }}
+        ./vault-tool-${{ runner.os }}-${{ runner.arch }} version
+        echo "✅ Binary built successfully"
 
     - name: Generate changelog
       id: changelog
@@ -113,13 +75,14 @@ jobs:
 
           ### Installation
 
-          #### Direct Download
-          Download the `.deb` package from this release and install it:
+          #### Install Binary
+          Download and run the prebuilt binary:
 
           ```bash
           RELEASE_TAG=${{ github.ref_name }}
-          wget https://github.com/rossigee/vault-tool/releases/download/$RELEASE_TAG/vault-tool_*.deb
-          sudo dpkg -i vault-tool_*.deb
+          wget https://github.com/rossigee/vault-tool/releases/download/$RELEASE_TAG/vault-tool-Linux-x86_64
+          chmod +x vault-tool-Linux-x86_64
+          sudo mv vault-tool-Linux-x86_64 /usr/local/bin/vault-tool
           ```
 
           #### Build from Source
@@ -138,8 +101,6 @@ jobs:
           vault-tool emergency-root-token --help
           ```
 
-        files: |
-          vault-tool_*.deb
-          debs/vault-tool_*.deb
+        files: vault-tool-Linux-x86_64
         draft: false
         prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
