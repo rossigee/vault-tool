@@ -4,18 +4,12 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to release (e.g., v0.1.6)'
-        required: true
-        type: string
 
 permissions:
   contents: write
 
 jobs:
-  build-debian-package:
+  release:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,39 +23,11 @@ jobs:
       with:
         go-version: '1.27'
 
-    - name: Download Go dependencies
-      run: go mod download
-
-    - name: Build binary
-      id: build
-      run: |
-        VERSION="${{ github.event.inputs.tag || github.ref_name }}"
-        VERSION=${VERSION#v}
-        echo "Building vault-tool v$VERSION"
-        BINARY_NAME="vault-tool-Linux-x86_64"
-        go build \
-          -ldflags "-X github.com/rossigee/vault-tool/internal/version.Version=$VERSION -X github.com/rossigee/vault-tool/internal/version.Commit=${{ github.sha }} -X github.com/rossigee/vault-tool/internal/version.BuildTime=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-          -o "$BINARY_NAME" .
-        chmod +x "$BINARY_NAME"
-        ./"$BINARY_NAME" version
-        ls -lh "$BINARY_NAME"
-        echo "binary=$BINARY_NAME" >> $GITHUB_OUTPUT
-
-    - name: Build Debian package
-      run: |
-        apt-get update
-        apt-get install -y build-essential debhelper devscripts
-        dpkg-buildpackage -us -uc -b
-        mkdir -p ./debs
-        cp ../*.deb ./debs/ || true
-        ls -lh ./debs/
-
-    - name: Create Release
-      uses: ncipollo/release-action@v1
+    - name: Run GoReleaser
+      uses: goreleaser/goreleaser-action@v6
       with:
-        tag: ${{ github.ref_name }}
-        artifacts: |
-          ${{ steps.build.outputs.binary }}
-          debs/*.deb
-        body: "vault-tool ${{ github.ref_name }}\n\nIncludes:\n- Binary for Linux x86_64\n- Debian package (.deb)"
-        draft: false
+        distribution: goreleaser
+        version: latest
+        args: release --clean
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

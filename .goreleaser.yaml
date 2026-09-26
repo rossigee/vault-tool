@@ -1,0 +1,64 @@
+version: 2
+
+project_name: vault-tool
+
+builds:
+  - id: vault-tool
+    main: .
+    binary: vault-tool
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -X github.com/rossigee/vault-tool/internal/version.Version={{.Version}}
+      - -X github.com/rossigee/vault-tool/internal/version.Commit={{.Commit}}
+      - -X github.com/rossigee/vault-tool/internal/version.BuildTime={{.Date}}
+
+archives:
+  - format: tar.gz
+    name_template: "vault-tool_{{.Version}}_{{.Os}}_{{.Arch}}"
+    wrap_in_directory: false
+
+nfpms:
+  - id: vault-tool
+    package_name: vault-tool
+    maintainer: "Ross Golder <ross@golder.org>"
+    homepage: "https://github.com/rossigee/vault-tool"
+    license: "MIT"
+    description: "Vault emergency access and maintenance tool"
+    section: "admin"
+    formats:
+      - deb
+    architectures:
+      - amd64
+      - arm64
+    bindir: /usr/bin
+    contents:
+      - src: ./README.md
+        dst: /usr/share/doc/vault-tool/README.md
+      - src: ./LICENSE
+        dst: /usr/share/doc/vault-tool/LICENSE
+
+checksums:
+  name_template: "checksums.txt"
+
+release:
+  github:
+    owner: rossigee
+    name: vault-tool
+  draft: false
+  prerelease: auto
+  mode: replace
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
