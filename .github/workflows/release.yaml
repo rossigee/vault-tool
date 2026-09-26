@@ -61,27 +61,30 @@ jobs:
 
     - name: Build Debian package
       run: |
-        cd /tmp
-        cp -r $GITHUB_WORKSPACE vault-tool-build
-        cd vault-tool-build
-        dpkg-buildpackage -us -uc -b -d
-        mkdir -p $GITHUB_WORKSPACE/debs
-        cp /tmp/vault-tool_*.deb $GITHUB_WORKSPACE/debs/ || true
-        cd $GITHUB_WORKSPACE
-        ls -lh debs/ || echo "No debs found"
+        echo "Building Debian package from master directory..."
+        dpkg-buildpackage -us -uc -b
+        mkdir -p debs
+        mv ../*.deb debs/ || true
+        echo "Contents of parent directory:"
+        ls -lh ../ | grep -E "\.deb|\.buildinfo|\.changes" || echo "No build artifacts in parent"
+        echo "Contents of debs directory:"
+        ls -lh debs/
 
     - name: Test package installation
       run: |
-        if [ -f debs/vault-tool_*.deb ]; then
-          DEB_FILE=$(ls debs/vault-tool_*.deb | head -1)
+        DEB_FILE=$(find . -name "vault-tool_*.deb" -type f | head -1)
+        if [ -n "$DEB_FILE" ]; then
           echo "Testing installation of $DEB_FILE"
-          dpkg -i "$DEB_FILE" || \
-            (apt-get update && apt-get install -f -y && dpkg -i "$DEB_FILE")
+          apt-get update && apt-get install -y --no-install-recommends "$DEB_FILE" || \
+            (echo "Direct install failed, trying with -f:" && apt-get install -f -y && dpkg -i "$DEB_FILE")
           vault-tool version
           vault-tool --help | head -5
           echo "✅ Package installation successful"
         else
           echo "⚠️ No .deb file found to test"
+          echo "Looking for debs:"
+          find . -name "*.deb" -type f 2>/dev/null || echo "No .deb files found"
+          exit 1
         fi
 
     - name: Generate changelog
@@ -135,6 +138,8 @@ jobs:
           vault-tool emergency-root-token --help
           ```
 
-        files: debs/vault-tool_*.deb
+        files: |
+          vault-tool_*.deb
+          debs/vault-tool_*.deb
         draft: false
         prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
