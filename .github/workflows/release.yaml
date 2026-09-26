@@ -64,47 +64,37 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
         fi
 
+    - name: List artifacts
+      run: |
+        echo "Checking for binary artifacts..."
+        ls -lh vault-tool* 2>/dev/null || echo "No vault-tool files found"
+        find . -name "vault-tool*" -type f 2>/dev/null | head -10
+
     - name: Create Release
-      uses: softprops/action-gh-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v2
       with:
+        files: vault-tool-Linux-x86_64
         body: |
           ## vault-tool ${{ github.ref_name }}
 
-          ### Changes
-          ${{ steps.changelog.outputs.changelog }}
-
           ### Installation
 
-          #### Install Binary
           Download and run the prebuilt binary:
 
           ```bash
-          RELEASE_TAG=${{ github.ref_name }}
-          wget https://github.com/rossigee/vault-tool/releases/download/$RELEASE_TAG/vault-tool-Linux-x86_64
+          wget https://github.com/rossigee/vault-tool/releases/download/${{ github.ref_name }}/vault-tool-Linux-x86_64
           chmod +x vault-tool-Linux-x86_64
           sudo mv vault-tool-Linux-x86_64 /usr/local/bin/vault-tool
+          vault-tool version
           ```
 
-          #### Build from Source
+          Or build from source:
+
           ```bash
           git clone https://github.com/rossigee/vault-tool.git
-          cd vault-tool
-          git checkout ${{ github.ref_name }}
-          make build
-          sudo install -m 0755 vault-tool /usr/local/bin/
+          cd vault-tool && git checkout ${{ github.ref_name }}
+          make build && sudo install -m 0755 vault-tool /usr/local/bin/
           ```
 
-          Then use it:
-
-          ```bash
-          vault-tool unseal --help
-          vault-tool emergency-root-token --help
-          ```
-
-        files: |
-          vault-tool-Linux-x86_64
-          vault-tool
         draft: false
         prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
