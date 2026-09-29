@@ -2,7 +2,7 @@
 
 A Go CLI tool for Vault emergency access and maintenance, providing sealed instance unsealing and emergency root token generation with OTP protection.
 
-**Latest Release:** v0.2.3
+**Latest Release:** v0.2.7
 
 ## Overview
 
@@ -46,25 +46,25 @@ Download from [Releases](https://github.com/rossigee/vault-tool/releases):
 **Linux amd64:**
 ```bash
 # Tarball
-wget https://github.com/rossigee/vault-tool/releases/download/v0.2.3/vault-tool_0.2.3_linux_amd64.tar.gz
-tar -xzf vault-tool_0.2.3_linux_amd64.tar.gz
+wget https://github.com/rossigee/vault-tool/releases/download/v0.2.7/vault-tool_0.2.7_linux_amd64.tar.gz
+tar -xzf vault-tool_0.2.7_linux_amd64.tar.gz
 sudo install -m 0755 vault-tool /usr/local/bin/
 
 # Or .deb package
-wget https://github.com/rossigee/vault-tool/releases/download/v0.2.3/vault-tool_0.2.3_linux_amd64.deb
-sudo dpkg -i vault-tool_0.2.3_linux_amd64.deb
+wget https://github.com/rossigee/vault-tool/releases/download/v0.2.7/vault-tool_0.2.7_linux_amd64.deb
+sudo dpkg -i vault-tool_0.2.7_linux_amd64.deb
 ```
 
 **Linux arm64:**
 ```bash
 # Tarball
-wget https://github.com/rossigee/vault-tool/releases/download/v0.2.3/vault-tool_0.2.3_linux_arm64.tar.gz
-tar -xzf vault-tool_0.2.3_linux_arm64.tar.gz
+wget https://github.com/rossigee/vault-tool/releases/download/v0.2.7/vault-tool_0.2.7_linux_arm64.tar.gz
+tar -xzf vault-tool_0.2.7_linux_arm64.tar.gz
 sudo install -m 0755 vault-tool /usr/local/bin/
 
 # Or .deb package
-wget https://github.com/rossigee/vault-tool/releases/download/v0.2.3/vault-tool_0.2.3_linux_arm64.deb
-sudo dpkg -i vault-tool_0.2.3_linux_arm64.deb
+wget https://github.com/rossigee/vault-tool/releases/download/v0.2.7/vault-tool_0.2.7_linux_arm64.deb
+sudo dpkg -i vault-tool_0.2.7_linux_arm64.deb
 ```
 
 ### Option 2: Install from source
