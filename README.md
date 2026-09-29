@@ -86,21 +86,24 @@ go build -o vault-tool
 ### Complete example: Generate and use an emergency root token
 
 ```bash
-# 1. Generate emergency root token (quiet by default, writes to ~/.vault-token)
+# 1. Set Vault address (optional, uses --addr flag if not set)
+export VAULT_ADDR=https://vault.example.com
+
+# 2. Generate emergency root token (quiet by default, writes to ~/.vault-token)
 vault-tool emergency-root-token
 
-# 2. Use the token immediately
+# 3. Use the token immediately
 export VAULT_TOKEN=$(cat ~/.vault-token)
 vault status
 vault auth list
 
-# 3. Optional: Troubleshoot with verbose logging
+# 4. Optional: Troubleshoot with verbose logging
 vault-tool emergency-root-token -v -f /tmp/root-token.txt
 
-# 4. Clean up - revoke when emergency is resolved
+# 5. Clean up - revoke when emergency is resolved
 vault token revoke -self
 
-# 5. Securely delete the token file
+# 6. Securely delete the token file
 shred -u ~/.vault-token
 ```
 
@@ -161,7 +164,7 @@ Replace `key1`, `key2`, `key3` with your actual Vault unseal keys and `user@exam
 Prompts for GPG passphrase, then submits unseal keys to unseal Vault.
 
 **Options:**
-- `--addr` - Vault address (default: `https://vault.example.com`)
+- `--addr` - Vault address (default: `$VAULT_ADDR` environment variable, or empty if not set)
 - `--keys-file` - Path to GPG-encrypted unseal keys (default: `$HOME/.config/vault/unseal-keys.gpg`)
 - `--passphrase` - GPG passphrase (prompts if not provided)
 - `-q, --quiet` - Suppress logging output
@@ -175,7 +178,7 @@ Prompts for GPG passphrase, then submits unseal keys to unseal Vault.
 **Default behavior:** Quiet, decrypts unseal keys, generates root token, auto-decodes OTP wrapping, writes plaintext token to `~/.vault-token` with 0600 permissions.
 
 **Options:**
-- `--addr` - Vault address (default: `https://vault.example.com`)
+- `--addr` - Vault address (default: `$VAULT_ADDR` environment variable, or empty if not set)
 - `--keys-file` - Path to GPG-encrypted unseal keys (default: `$HOME/.config/vault/unseal-keys.gpg`)
 - `--passphrase` - GPG passphrase (prompts if not provided)
 - `--ttl` - Token TTL (default: `24h`, e.g., `1h`, `72h`, `7d`)

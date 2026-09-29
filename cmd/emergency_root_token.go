@@ -39,7 +39,7 @@ var emergencyRootTokenCmd = &cobra.Command{
 }
 
 func init() {
-	emergencyRootTokenCmd.Flags().StringVar(&emergencyAddr, "addr", "https://vault.example.com", "Vault address")
+	emergencyRootTokenCmd.Flags().StringVar(&emergencyAddr, "addr", os.Getenv("VAULT_ADDR"), "Vault address")
 	emergencyRootTokenCmd.Flags().StringVar(&emergencyKeysFile, "keys-file", os.ExpandEnv("$HOME/.config/vault/unseal-keys.gpg"), "Path to GPG-encrypted unseal keys")
 	emergencyRootTokenCmd.Flags().StringVar(&emergencyPassphrase, "passphrase", "", "GPG passphrase (read from stdin if not provided)")
 	emergencyRootTokenCmd.Flags().StringVar(&emergencyTokenTTL, "ttl", "24h", "Token TTL (default 24 hours, mutually exclusive with --unlimited)")

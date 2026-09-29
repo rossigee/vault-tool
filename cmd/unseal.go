@@ -33,7 +33,7 @@ var unsealCmd = &cobra.Command{
 }
 
 func init() {
-	unsealCmd.Flags().StringVar(&unsealAddr, "addr", "https://vault.example.com", "Vault address")
+	unsealCmd.Flags().StringVar(&unsealAddr, "addr", os.Getenv("VAULT_ADDR"), "Vault address")
 	unsealCmd.Flags().StringVar(&unsealKeysFile, "keys-file", os.ExpandEnv("$HOME/.config/vault/unseal-keys.gpg"), "Path to GPG-encrypted unseal keys")
 	unsealCmd.Flags().StringVar(&unsealPassphrase, "passphrase", "", "GPG passphrase (read from stdin if not provided)")
 	unsealCmd.Flags().BoolVarP(&unsealVerbose, "verbose", "v", false, "Enable verbose (info-level) logging")
